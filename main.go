@@ -184,7 +184,7 @@ func (e ErrParseLinkState) Error() string {
     return fmt.Sprintf("parse link state: %s", e.msg)
 }
 
-func NewNetworkTypology(in io.ReadCloser) *NetworkTypology {
+func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
     defer func(in io.ReadCloser) {
         err := in.Close()
         if err != nil {
@@ -196,13 +196,14 @@ func NewNetworkTypology(in io.ReadCloser) *NetworkTypology {
     n.links = make(map[string]map[string]Link)
 
     r := bufio.NewReader(in)
+    currTime := 0
     for {
         line, err := r.ReadString('\n')
         if err != nil {
             if errors.Is(err, io.EOF) {
                 break
             }
-            log.Panicf("invalid input topology: '%s'", err)
+            return nil, err
         }
         line = strings.TrimSuffix(line, "\n")
 
@@ -210,6 +211,11 @@ func NewNetworkTypology(in io.ReadCloser) *NetworkTypology {
         if err != nil {
             log.Fatalln(err)
         }
+
+        if ls.time < currTime {
+            return nil, errors.New("entries in input must be sorted by increasing time")
+        }
+        currTime = ls.time
 
         // Add the new LinkState to the applicable link. If there is not a link, create one.
         dsts, ok := n.links[ls.fromNode]
@@ -235,7 +241,7 @@ func NewNetworkTypology(in io.ReadCloser) *NetworkTypology {
         dsts[ls.toNode] = dst
     }
 
-    return n
+    return n, nil
 }
 
 // Query enables to Controller to determine the current link-state at a time quantum.

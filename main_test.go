@@ -186,7 +186,7 @@ func TestNetworkTypology_Query(t *testing.T) {
     }{
         {
             name:   "is up",
-            fields: fields{links: NewNetworkTypology(getTopology1()).links},
+            fields: fields{links: goodTopology().links},
             args: args{msg: QueryMsg{
                 fromNodeLabel: "X",
                 toNodeLabel:   "Y",
@@ -196,7 +196,7 @@ func TestNetworkTypology_Query(t *testing.T) {
         },
         {
             name:   "is down",
-            fields: fields{links: NewNetworkTypology(getTopology1()).links},
+            fields: fields{links: goodTopology().links},
             args: args{msg: QueryMsg{
                 fromNodeLabel: "X",
                 toNodeLabel:   "Y",
@@ -206,7 +206,7 @@ func TestNetworkTypology_Query(t *testing.T) {
         },
         {
             name:   "is up end",
-            fields: fields{links: NewNetworkTypology(getTestData("./testdata/topology_1.txt")).links},
+            fields: fields{links: goodTopology().links},
             args: args{msg: QueryMsg{
                 fromNodeLabel: "Z",
                 toNodeLabel:   "X",
@@ -216,7 +216,7 @@ func TestNetworkTypology_Query(t *testing.T) {
         },
         {
             name:   "label not in topology",
-            fields: fields{links: NewNetworkTypology(getTopology1()).links},
+            fields: fields{links: goodTopology().links},
             args: args{msg: QueryMsg{
                 fromNodeLabel: "Y",
                 toNodeLabel:   "X",
@@ -245,8 +245,20 @@ func getTestData(p string) io.ReadCloser {
     return f
 }
 
-func getTopology1() io.ReadCloser {
-    return getTestData("./testdata/topology_1.txt")
+func goodTopologyReadyCloser() io.ReadCloser {
+    return getTestData("./testdata/good_topology.txt")
+}
+
+func badTopologyReadCloser() io.ReadCloser {
+    return getTestData("./testdata/topology_bad_order.txt")
+}
+
+func goodTopology() *NetworkTypology {
+    t, err := NewNetworkTypology(goodTopologyReadyCloser())
+    if err != nil {
+        panic(err)
+    }
+    return t
 }
 
 func TestNewNetworkTypology(t *testing.T) {
@@ -254,13 +266,14 @@ func TestNewNetworkTypology(t *testing.T) {
         in io.ReadCloser
     }
     tests := []struct {
-        name string
-        args args
-        want *NetworkTypology
+        name    string
+        args    args
+        want    *NetworkTypology
+        wantErr bool
     }{
         {
-            name: "topology_1",
-            args: args{in: getTopology1()},
+            name: "good topology",
+            args: args{in: goodTopologyReadyCloser()},
             want: &NetworkTypology{
                 links: map[string]map[string]Link{
                     "X": {
@@ -331,12 +344,24 @@ func TestNewNetworkTypology(t *testing.T) {
                     },
                 },
             },
+            wantErr: false,
+        },
+        {
+            name:    "bad topology",
+            args:    args{in: badTopologyReadCloser()},
+            want:    nil,
+            wantErr: true,
         },
     }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            if got := NewNetworkTypology(tt.args.in); !reflect.DeepEqual(got, tt.want) {
-                t.Errorf("NewNetworkTypology() = %v, want %v", got, tt.want)
+            got, err := NewNetworkTypology(tt.args.in)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("NewNetworkTypology() error = %v, wantErr %v", err, tt.wantErr)
+                return
+            }
+            if !reflect.DeepEqual(got, tt.want) {
+                t.Errorf("NewNetworkTypology() got = %v, want %v", got, tt.want)
             }
         })
     }
