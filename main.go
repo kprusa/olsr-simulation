@@ -100,6 +100,9 @@ func parseLinkState(state string) (*LinkState, error) {
     if err != nil {
         return nil, ErrParseLinkState{msg: fmt.Sprintf("time is not an integer: '%s'", splitState[0])}
     }
+    if time < 0 {
+        return nil, ErrParseLinkState{msg: fmt.Sprintf("time must be greater than 0: '%s'", splitState[0])}
+    }
     ls.time = time
 
     // Parse status

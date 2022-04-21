@@ -376,6 +376,12 @@ func Test_parseLinkState(t *testing.T) {
             wantErr: true,
         },
         {
+            name:    "no negative time",
+            args:    args{state: "-1 UP X Y"},
+            want:    nil,
+            wantErr: true,
+        },
+        {
             name:    "invalid status",
             args:    args{state: "1 x X Y"},
             want:    nil,
