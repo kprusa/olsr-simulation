@@ -1,2 +1,2 @@
-10 UP X Y
-9 UP Y X
+10 UP 0 1
+9 UP 1 0
