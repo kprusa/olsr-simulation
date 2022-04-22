@@ -11,9 +11,12 @@ import (
 	"strings"
 )
 
+// NodeID is a unique identifier used to differentiate nodes.
+type NodeID int
+
 // Node represents a network node in the ad-hoc network.
 type Node struct {
-	label int
+	id NodeID
 
 	// outputLog is where the Node will write all messages that it has sent.
 	outputLog io.Writer
@@ -36,21 +39,21 @@ func (n *Node) run(done <-chan struct{}) {
 		case in := <-n.input:
 			_, err := fmt.Fprintln(n.inputLog, in)
 			if err != nil {
-				log.Panicf("%d could not write out log: %s", n.label, err)
+				log.Panicf("%d could not write out log: %s", n.id, err)
 			}
-			log.Printf("%d received msg: %s\n", n.label, in)
+			log.Printf("%d received msg: %s\n", n.id, in)
 
 		case <-done:
-			log.Printf("%d recevied done message", n.label)
+			log.Printf("%d recevied done message", n.id)
 			return
 		}
 	}
 }
 
 // NewNode creates a network Node.
-func NewNode(input <-chan string, label int) *Node {
+func NewNode(input <-chan string, label NodeID) *Node {
 	n := Node{}
-	n.label = label
+	n.id = label
 	n.input = input
 	n.output = make(chan<- string)
 	return &n
@@ -75,11 +78,11 @@ type LinkState struct {
 	// status is the status of the link.
 	status LinkStatus
 
-	// fromNode is the source Node label.
-	fromNode int
+	// fromNode is the source Node id.
+	fromNode NodeID
 
-	// toNode is the destination Node label.
-	toNode int
+	// toNode is the destination Node id.
+	toNode NodeID
 }
 
 func (l *LinkState) String() string {
@@ -121,23 +124,28 @@ func parseLinkState(state string) (*LinkState, error) {
 		panic(err)
 	}
 	if !lre.Match([]byte(splitState[2])) {
-		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid label: '%s': must be '^[0-9]$'", splitState[2])}
+		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid id: '%s': must be '^[0-9]$'", splitState[2])}
 	}
 	if !lre.Match([]byte(splitState[3])) {
-		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid label: '%s': must be '^[0-9]$'", splitState[3])}
+		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid id: '%s': must be '^[0-9]$'", splitState[3])}
 	}
-	ls.fromNode, _ = strconv.Atoi(splitState[2])
-	ls.toNode, _ = strconv.Atoi(splitState[3])
+
+	// Already ensured the string represents an integer from the regex.
+	rawLabel, _ := strconv.Atoi(splitState[2])
+	ls.fromNode = NodeID(rawLabel)
+
+	rawLabel, _ = strconv.Atoi(splitState[3])
+	ls.toNode = NodeID(rawLabel)
 
 	return ls, nil
 }
 
 type Link struct {
-	// fromNode is the source Node label.
-	fromNode int
+	// fromNode is the source Node id.
+	fromNode NodeID
 
-	// toNode is the destination Node label.
-	toNode int
+	// toNode is the destination Node id.
+	toNode NodeID
 
 	states []LinkState
 }
@@ -161,11 +169,11 @@ func (l *Link) isUp(time int) bool {
 // QueryMsg enables the Controller to query the NetworkTopology to determine the state of a link at a given moment
 // in time.
 type QueryMsg struct {
-	// fromNodeLabel is the source of the link.
-	fromNodeLabel int
+	// fromNode is the source of the link.
+	fromNode NodeID
 
-	// toNodeLabel is the destination of the link.
-	toNodeLabel int
+	// toNode is the destination of the link.
+	toNode NodeID
 
 	// timeQuantum is the moment in time to check the status of the link.
 	timeQuantum int
@@ -173,7 +181,7 @@ type QueryMsg struct {
 
 // NetworkTypology represents the ad-hoc network typology and is used by the Controller.
 type NetworkTypology struct {
-	links map[int]map[int]Link
+	links map[NodeID]map[NodeID]Link
 }
 
 type ErrParseLinkState struct {
@@ -193,7 +201,7 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 	}(in)
 
 	n := &NetworkTypology{}
-	n.links = make(map[int]map[int]Link)
+	n.links = make(map[NodeID]map[NodeID]Link)
 
 	r := bufio.NewReader(in)
 	currTime := 0
@@ -223,7 +231,7 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 			link := Link{fromNode: ls.fromNode, toNode: ls.toNode}
 			link.states = append(link.states, *ls)
 
-			srcMap := make(map[int]Link)
+			srcMap := make(map[NodeID]Link)
 			srcMap[ls.toNode] = link
 			n.links[ls.fromNode] = srcMap
 			continue
@@ -246,12 +254,12 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 
 // Query enables to Controller to determine the current link-state at a time quantum.
 func (n *NetworkTypology) Query(msg QueryMsg) bool {
-	links, in := n.links[msg.fromNodeLabel]
+	links, in := n.links[msg.fromNode]
 	if !in {
 		return false
 	}
 
-	link, in := links[msg.toNodeLabel]
+	link, in := links[msg.toNode]
 	if !in {
 		return false
 	}

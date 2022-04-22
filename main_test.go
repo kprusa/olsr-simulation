@@ -11,8 +11,8 @@ func TestLinkState_String(t *testing.T) {
 	type fields struct {
 		time     int
 		status   LinkStatus
-		fromNode int
-		toNode   int
+		fromNode NodeID
+		toNode   NodeID
 	}
 	tests := []struct {
 		name   string
@@ -47,8 +47,8 @@ func TestLinkState_String(t *testing.T) {
 
 func TestLink_isUp(t *testing.T) {
 	type fields struct {
-		fromNode int
-		toNode   int
+		fromNode NodeID
+		toNode   NodeID
 		states   []LinkState
 	}
 	type args struct {
@@ -173,7 +173,7 @@ func TestLink_isUp(t *testing.T) {
 
 func TestNetworkTypology_Query(t *testing.T) {
 	type fields struct {
-		links map[int]map[int]Link
+		links map[NodeID]map[NodeID]Link
 	}
 	type args struct {
 		msg QueryMsg
@@ -188,9 +188,9 @@ func TestNetworkTypology_Query(t *testing.T) {
 			name:   "is up",
 			fields: fields{links: goodTopology().links},
 			args: args{msg: QueryMsg{
-				fromNodeLabel: 0,
-				toNodeLabel:   1,
-				timeQuantum:   10,
+				fromNode:    0,
+				toNode:      1,
+				timeQuantum: 10,
 			}},
 			want: true,
 		},
@@ -198,9 +198,9 @@ func TestNetworkTypology_Query(t *testing.T) {
 			name:   "is down",
 			fields: fields{links: goodTopology().links},
 			args: args{msg: QueryMsg{
-				fromNodeLabel: 0,
-				toNodeLabel:   1,
-				timeQuantum:   20,
+				fromNode:    0,
+				toNode:      1,
+				timeQuantum: 20,
 			}},
 			want: false,
 		},
@@ -208,19 +208,19 @@ func TestNetworkTypology_Query(t *testing.T) {
 			name:   "is up end",
 			fields: fields{links: goodTopology().links},
 			args: args{msg: QueryMsg{
-				fromNodeLabel: 2,
-				toNodeLabel:   0,
-				timeQuantum:   25,
+				fromNode:    2,
+				toNode:      0,
+				timeQuantum: 25,
 			}},
 			want: true,
 		},
 		{
-			name:   "label not in topology",
+			name:   "id not in topology",
 			fields: fields{links: goodTopology().links},
 			args: args{msg: QueryMsg{
-				fromNodeLabel: 1,
-				toNodeLabel:   0,
-				timeQuantum:   0,
+				fromNode:    1,
+				toNode:      0,
+				timeQuantum: 0,
 			}},
 			want: false,
 		},
@@ -275,7 +275,7 @@ func TestNewNetworkTypology(t *testing.T) {
 			name: "good topology",
 			args: args{in: goodTopologyReadyCloser()},
 			want: &NetworkTypology{
-				links: map[int]map[int]Link{
+				links: map[NodeID]map[NodeID]Link{
 					0: {
 						1: {
 							fromNode: 0,
@@ -413,7 +413,7 @@ func Test_parseLinkState(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid label",
+			name:    "invalid id",
 			args:    args{state: "1 UP X 1"},
 			want:    nil,
 			wantErr: true,
