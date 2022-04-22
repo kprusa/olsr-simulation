@@ -12,7 +12,7 @@ import (
 )
 
 // NodeID is a unique identifier used to differentiate nodes.
-type NodeID int
+type NodeID uint
 
 // Node represents a network node in the ad-hoc network.
 type Node struct {
