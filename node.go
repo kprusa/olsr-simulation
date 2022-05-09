@@ -20,10 +20,10 @@ type Node struct {
 	inputLog io.Writer
 
 	// input represents the Node's wireless receiver.
-	input <-chan string
+	input <-chan Message
 
 	// output represents the Node's wireless transmitter.
-	output chan<- string
+	output chan<- Message
 }
 
 // run starts the Node "listening" for messages.
@@ -46,10 +46,10 @@ func (n *Node) run(done <-chan struct{}) {
 }
 
 // NewNode creates a network Node.
-func NewNode(input <-chan string, label NodeID) *Node {
+func NewNode(input <-chan Message, label NodeID) *Node {
 	n := Node{}
 	n.id = label
 	n.input = input
-	n.output = make(chan<- string)
+	n.output = make(chan<- Message)
 	return &n
 }
