@@ -89,6 +89,34 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "new bidirectional neighbor from mpr",
+			args: args{
+				msg: &HelloMessage{
+					src:    1,
+					unidir: nil,
+					bidir:  nil,
+					mpr:    []NodeID{0},
+				},
+				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+					NodeID(1): {
+						neighborID: 1,
+						state:      Unidirectional,
+						holdUntil:  15,
+					},
+				},
+				time:     10,
+				holdTime: 10,
+				id:       0,
+			},
+			want: map[NodeID]OneHopNeighborEntry{
+				NodeID(1): {
+					neighborID: 1,
+					state:      Bidirectional,
+					holdUntil:  20,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -7,7 +7,7 @@ func TestTCMessage_String(t *testing.T) {
 		type_  MsgType
 		src    NodeID
 		frombr NodeID
-		seq    uint
+		seq    int
 		ms     []NodeID
 	}
 	tests := []struct {

@@ -118,7 +118,7 @@ func (n *Node) run(ctx context.Context) {
 			if err != nil {
 				log.Panicf("%d could not write out log: %s", n.id, err)
 			}
-			log.Printf("node %d: received:\t\t%s\n", n.id, msg)
+			log.Printf("node %d: received:\t%s\n", n.id, msg)
 
 			n.handler(msg)
 		default:
@@ -134,8 +134,21 @@ func (n *Node) run(ctx context.Context) {
 			// send data msg
 		}
 
-		// TODO: Remove old entries from the neighbor tables.
-		// TODO: Remove old entries from the TC tables.
+		// Remove old entries from the neighbor tables.
+		for k, entry := range n.oneHopNeighbors {
+			if entry.holdUntil <= n.currentTime {
+				delete(n.oneHopNeighbors, k)
+				delete(n.twoHopNeighbors, k)
+			}
+		}
+		// Remove old entries from the TC tables.
+		for _, dst := range n.topologyTable {
+			for k, entry := range dst {
+				if entry.holdUntil <= n.currentTime {
+					delete(dst, k)
+				}
+			}
+		}
 		// TODO: Recalculate the routing table, if necessary.
 
 		n.currentTime++
@@ -160,7 +173,7 @@ func (n *Node) sendHello() {
 		}
 	}
 
-	hello := HelloMessage{
+	hello := &HelloMessage{
 		src:    n.id,
 		unidir: uniNeighbors,
 		bidir:  biNeighbors,
@@ -177,7 +190,7 @@ func (n *Node) sendTC() {
 		msSet = append(msSet, id)
 	}
 
-	tc := TCMessage{
+	tc := &TCMessage{
 		src:     n.id,
 		fromnbr: n.id,
 		seq:     n.tcSequenceNum,
@@ -218,7 +231,7 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 		entry.holdUntil = holdUntil
 
 		// Check if the link state should be updated.
-		for _, nodeID := range append(msg.unidir, msg.bidir...) {
+		for _, nodeID := range append(msg.unidir, append(msg.bidir, msg.mpr...)...) {
 			if nodeID == id {
 				entry.state = Bidirectional
 				break
@@ -324,9 +337,6 @@ func (n *Node) handleHello(msg *HelloMessage) {
 	if !ok && isMS {
 		n.msSet[msg.src] = msg.src
 	}
-
-	// Send new hello message.
-	n.sendHello()
 }
 
 func (n *Node) handleData(msg *DataMessage) {
