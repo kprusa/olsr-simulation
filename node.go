@@ -160,12 +160,14 @@ func (n *Node) sendHello() {
 		}
 	}
 
-	n.output <- HelloMessage{
+	hello := HelloMessage{
 		src:    n.id,
 		unidir: uniNeighbors,
 		bidir:  biNeighbors,
 		mpr:    mprNeighbors,
 	}
+	n.output <- hello
+	log.Printf("node %d: sent:\t%s", n.id, hello)
 }
 
 func (n *Node) sendTC() {
@@ -175,12 +177,14 @@ func (n *Node) sendTC() {
 		msSet = append(msSet, id)
 	}
 
-	n.output <- TCMessage{
+	tc := TCMessage{
 		src:     n.id,
 		fromnbr: n.id,
 		seq:     n.tcSequenceNum,
 		ms:      msSet,
 	}
+	n.output <- tc
+	log.Printf("node %d: sent:\t%s", n.id, tc)
 
 	n.tcSequenceNum++
 }
@@ -321,34 +325,8 @@ func (n *Node) handleHello(msg *HelloMessage) {
 		n.msSet[msg.src] = msg.src
 	}
 
-	// Gather one-hop neighbor entries.
-	biNeighbors := make([]NodeID, 0)
-	uniNeighbors := make([]NodeID, 0)
-	mprNeighbors := make([]NodeID, 0)
-	for _, o := range n.oneHopNeighbors {
-		switch o.state {
-		case Unidirectional:
-			uniNeighbors = append(uniNeighbors, o.neighborID)
-		case Bidirectional:
-			biNeighbors = append(biNeighbors, o.neighborID)
-		case MPR:
-			mprNeighbors = append(mprNeighbors, o.neighborID)
-		default:
-			log.Panicf("node %d: invalid one-hop neighbor type: %d", n.id, o.state)
-		}
-	}
-
-	// Construct new HelloMessage.
-	hello := &HelloMessage{
-		src:    n.id,
-		unidir: uniNeighbors,
-		bidir:  biNeighbors,
-		mpr:    mprNeighbors,
-	}
-	// Send HelloMessage.
-	n.output <- hello
-
-	log.Printf("node %d: sent:\t\t%s", n.id, hello)
+	// Send new hello message.
+	n.sendHello()
 }
 
 func (n *Node) handleData(msg *DataMessage) {
