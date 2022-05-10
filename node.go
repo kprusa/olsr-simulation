@@ -97,17 +97,20 @@ type Node struct {
 	// needs to be sent.
 	prevMSSet []NodeID
 
-	// currentTime is the number of ticks since the node came online.
-	currentTime int
+	// currentTick is the number of ticks since the node came online.
+	currentTick int
 
 	// neighborHoldTime is how long, in ticks, neighbor table entries will be held until they are expelled.
 	neighborHoldTime int
+
+	// tickDuration controls the Node's ticker.
+	tickDuration time.Duration
 }
 
 // run starts the Node "listening" for messages.
 func (n *Node) run(ctx context.Context) {
 	// Continuously listen for new messages until done received by Controller.
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(n.tickDuration)
 	defer ticker.Stop()
 	defer func(log io.WriteCloser) {
 		_ = log.Close()
@@ -116,7 +119,7 @@ func (n *Node) run(ctx context.Context) {
 		_ = log.Close()
 	}(n.outputLog)
 
-	n.currentTime = 0
+	n.currentTick = 0
 	for _ = range ticker.C {
 		select {
 		case <-ctx.Done():
@@ -134,19 +137,19 @@ func (n *Node) run(ctx context.Context) {
 		default:
 		}
 
-		if n.currentTime%5 == 0 {
+		if n.currentTick%5 == 0 {
 			n.sendHello()
 		}
-		if n.currentTime%10 == 0 && len(n.msSet) > 0 {
+		if n.currentTick%10 == 0 && len(n.msSet) > 0 {
 			n.sendTC()
 		}
-		if n.currentTime == n.nodeMsg.delay {
+		if n.currentTick == n.nodeMsg.delay {
 			// send data msg
 		}
 
 		// Remove old entries from the neighbor tables.
 		for k, entry := range n.oneHopNeighbors {
-			if entry.holdUntil <= n.currentTime {
+			if entry.holdUntil <= n.currentTick {
 				delete(n.oneHopNeighbors, k)
 				delete(n.twoHopNeighbors, k)
 			}
@@ -154,14 +157,14 @@ func (n *Node) run(ctx context.Context) {
 		// Remove old entries from the TC tables.
 		for _, dst := range n.topologyTable {
 			for k, entry := range dst {
-				if entry.holdUntil <= n.currentTime {
+				if entry.holdUntil <= n.currentTick {
 					delete(dst, k)
 				}
 			}
 		}
 		// TODO: Recalculate the routing table, if necessary.
 
-		n.currentTime++
+		n.currentTick++
 	}
 }
 
@@ -359,7 +362,7 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 // handleHello handles the processing of a HelloMessage.
 func (n *Node) handleHello(msg *HelloMessage) {
 	// Update one-hop neighbors.
-	n.oneHopNeighbors = updateOneHopNeighbors(msg, n.oneHopNeighbors, n.currentTime+n.neighborHoldTime, n.id)
+	n.oneHopNeighbors = updateOneHopNeighbors(msg, n.oneHopNeighbors, n.currentTick+n.neighborHoldTime, n.id)
 
 	// Update two-hop neighbors
 	n.twoHopNeighbors = updateTwoHopNeighbors(msg, n.twoHopNeighbors, n.id)
@@ -447,7 +450,7 @@ func (n *Node) handleTC(msg *TCMessage) {
 		}
 	}
 
-	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTime+n.topologyHoldTime, n.id)
+	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTick+n.topologyHoldTime, n.id)
 
 	// Only forward TC message if this node is an MPR of the neighbor which sent the TC message.
 	doFwd := false
@@ -480,12 +483,13 @@ type NodeMsg struct {
 }
 
 // NewNode creates a network Node.
-func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nodeMsg NodeMsg) *Node {
+func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nodeMsg NodeMsg, tickDur time.Duration) *Node {
 	n := Node{}
 	n.id = id
 	n.input = input
 	n.output = output
 	n.nodeMsg = nodeMsg
+	n.tickDuration = tickDur
 
 	_ = os.Mkdir("./log", 0750)
 

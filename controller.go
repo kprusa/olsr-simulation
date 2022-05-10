@@ -21,6 +21,9 @@ type Controller struct {
 
 	// nodes holds all running nodes which this controller is responsible for.
 	nodes []Node
+
+	// tickDuration controls how quickly the simulation runs.
+	tickDuration time.Duration
 }
 
 // Initialize creates new nodes based on the supplied configuration and establishes channels.
@@ -30,7 +33,7 @@ func (c *Controller) Initialize(nodes []NodeConfig) {
 		in := make(chan interface{})
 		c.nodeChannels[config.id] = in
 
-		node := NewNode(in, c.inputLink, config.id, config.msg)
+		node := NewNode(in, c.inputLink, config.id, config.msg, c.tickDuration)
 		c.nodes = append(c.nodes, *node)
 	}
 }
@@ -44,7 +47,7 @@ func (c *Controller) handleHello(hm *HelloMessage, epoch time.Time) {
 		q := QueryMsg{
 			fromNode:    hm.src,
 			toNode:      node.id,
-			timeQuantum: int(time.Since(epoch).Seconds()),
+			timeQuantum: int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			// Send the hello if a link is available.
@@ -62,7 +65,7 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 		q := QueryMsg{
 			fromNode:    tcm.fromnbr,
 			toNode:      node.id,
-			timeQuantum: int(time.Since(epoch).Seconds()),
+			timeQuantum: int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			c.nodeChannels[node.id] <- tcm
@@ -133,5 +136,6 @@ func NewController(topology NetworkTypology) *Controller {
 	c := &Controller{}
 	c.topology = topology
 	c.nodeChannels = make(map[NodeID]chan interface{})
+	c.tickDuration = time.Millisecond * 250
 	return c
 }
