@@ -14,10 +14,10 @@ type TopologyEntry struct {
 	dst NodeID
 
 	// dstMPR is the originator of the TCMessage (last-hop node to the destination).
-	dstMPR []NodeID
+	dstMPR NodeID
 
 	// msSeqNum is the MPR selector (MS) sequence number, used to determine if a TCMessage contains new information.
-	msSeqNum int
+	msSeqNum uint
 
 	// holdingTime determines how long an entry will be held for before being expelled.
 	holdingTime int
@@ -70,7 +70,15 @@ type Node struct {
 	// nodeMsg will be sent by the node based on the message's delay.
 	nodeMsg NodeMsg
 
-	topologyTable []TopologyEntry
+	// topologyTable represents the Node's current perception of the network topology.
+	// First NodeID is the desired destination and the second NodeID is an MPR of the destination.
+	topologyTable map[NodeID]map[NodeID]TopologyEntry
+
+	// tcSequenceNum is the current TCMessage sequence number.
+	tcSequenceNum int
+
+	// topologyHoldTime is how long, in ticks, topology table entries will be held until they are expelled.
+	topologyHoldTime int
 
 	routingTable []RoutingEntry
 
@@ -277,8 +285,55 @@ func (n *Node) handleData(msg *DataMessage) {
 	fmt.Printf("node %d: received message of type: %s\n", n.id, DataType)
 }
 
+func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int) map[NodeID]map[NodeID]TopologyEntry {
+	for _, dst := range msg.ms {
+		entries, ok := topologyTable[dst]
+		if !ok {
+			// First time seeing this destination
+			entries = make(map[NodeID]TopologyEntry)
+			entries[msg.src] = TopologyEntry{
+				dst:         dst,
+				dstMPR:      msg.src,
+				msSeqNum:    msg.seq,
+				holdingTime: holdUntil,
+			}
+			topologyTable[dst] = entries
+			continue
+		}
+
+		entry, ok := entries[msg.src]
+		if !ok {
+			// First time seeing this MPR for the destination.
+			entries[msg.src] = TopologyEntry{
+				dst:         dst,
+				dstMPR:      msg.src,
+				msSeqNum:    msg.seq,
+				holdingTime: holdUntil,
+			}
+			continue
+		}
+
+		// We've seen this (dst, mpr) pair already.
+		if entry.msSeqNum < msg.seq {
+			entry.holdingTime = holdUntil
+			entries[msg.src] = entry
+		}
+	}
+
+	return topologyTable
+}
+
 func (n *Node) handleTC(msg *TCMessage) {
-	fmt.Printf("node %d: received message of type: %s\n", n.id, TCType)
+
+	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.topologyHoldTime)
+
+	// Update the from-neighbor field.
+	msg.fromnbr = n.id
+
+	// Send the updated msg.
+	n.output <- msg
+
+	log.Printf("node %d: sent:\t\t%s", n.id, msg)
 }
 
 type NodeMsg struct {

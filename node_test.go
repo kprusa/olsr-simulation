@@ -261,3 +261,98 @@ func Test_calculateMPRs(t *testing.T) {
 		})
 	}
 }
+
+func Test_updateTopologyTable1(t *testing.T) {
+	type args struct {
+		msg           *TCMessage
+		topologyTable map[NodeID]map[NodeID]TopologyEntry
+		holdTime      int
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[NodeID]map[NodeID]TopologyEntry
+	}{
+		{
+			name: "new nodes",
+			args: args{
+				msg: &TCMessage{
+					src:     1,
+					fromnbr: 1,
+					seq:     0,
+					ms: []NodeID{
+						NodeID(2),
+						NodeID(3),
+					},
+				},
+				topologyTable: map[NodeID]map[NodeID]TopologyEntry{},
+				holdTime:      30,
+			},
+			want: map[NodeID]map[NodeID]TopologyEntry{
+				NodeID(2): {
+					NodeID(1): TopologyEntry{
+						dst:         2,
+						dstMPR:      1,
+						msSeqNum:    0,
+						holdingTime: 30,
+					},
+				},
+				NodeID(3): {
+					NodeID(1): TopologyEntry{
+						dst:         3,
+						dstMPR:      1,
+						msSeqNum:    0,
+						holdingTime: 30,
+					},
+				},
+			},
+		},
+		{
+			name: "multiple mprs",
+			args: args{
+				msg: &TCMessage{
+					src:     1,
+					fromnbr: 1,
+					seq:     0,
+					ms: []NodeID{
+						NodeID(2),
+					},
+				},
+				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
+					NodeID(2): {
+						NodeID(3): TopologyEntry{
+							dst:         2,
+							dstMPR:      3,
+							msSeqNum:    0,
+							holdingTime: 30,
+						},
+					},
+				},
+				holdTime: 30,
+			},
+			want: map[NodeID]map[NodeID]TopologyEntry{
+				NodeID(2): {
+					NodeID(1): TopologyEntry{
+						dst:         2,
+						dstMPR:      1,
+						msSeqNum:    0,
+						holdingTime: 30,
+					},
+					NodeID(3): TopologyEntry{
+						dst:         2,
+						dstMPR:      3,
+						msSeqNum:    0,
+						holdingTime: 30,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := updateTopologyTable(tt.args.msg, tt.args.topologyTable, tt.args.holdTime); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("updateTopologyTable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
