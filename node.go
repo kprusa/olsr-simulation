@@ -14,11 +14,8 @@ type TopologyEntry struct {
 	// dst is the MPR selector in the received TCMessage.
 	dst NodeID
 
-	// dstMPR is the originator of the TCMessage (last-hop node to the destination).
-	dstMPR NodeID
-
-	// msSeqNum is the MPR selector (MS) sequence number, used to determine if a TCMessage contains new information.
-	msSeqNum int
+	// dstNextHop is the originator of the TCMessage (last-hop node to the destination).
+	dstNextHop NodeID
 
 	// holdUntil determines how long an entry will be held for before being expelled.
 	holdUntil int
@@ -72,8 +69,11 @@ type Node struct {
 	nodeMsg NodeMsg
 
 	// topologyTable represents the Node's current perception of the network topology.
-	// First NodeID is the desired destination and the second NodeID is an MPR of the destination.
+	// First NodeID is the next-hop neighbor, while the second ID is the destination.
 	topologyTable map[NodeID]map[NodeID]TopologyEntry
+
+	// topologySequences maps each NodeID which this node has received a TCMessage from to that Node's sequence number.
+	topologySequences map[NodeID]int
 
 	// tcSequenceNum is the current TCMessage sequence number.
 	tcSequenceNum int
@@ -133,7 +133,7 @@ func (n *Node) run(ctx context.Context) {
 			}
 			log.Printf("node %d: received:\t%s\n", n.id, msg)
 
-			go n.handler(msg)
+			n.handler(msg)
 		default:
 		}
 
@@ -257,6 +257,10 @@ func (n *Node) handler(msg interface{}) {
 	default:
 		log.Panicf("node %d: invalid message type: %s\n", n.id, t)
 	}
+}
+
+func (n *Node) calculateRoutingTable() {
+
 }
 
 // updateOneHopNeighbors adds all new one-hop neighbors that can be reached.
@@ -398,36 +402,31 @@ func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]Top
 		if dst == id {
 			continue
 		}
-		entries, ok := topologyTable[dst]
+		entries, ok := topologyTable[msg.fromnbr]
 		if !ok {
 			// First time seeing this destination
 			entries = make(map[NodeID]TopologyEntry)
-			entries[msg.src] = TopologyEntry{
-				dst:       dst,
-				dstMPR:    msg.src,
-				msSeqNum:  msg.seq,
-				holdUntil: holdUntil,
+			entries[dst] = TopologyEntry{
+				dst:        dst,
+				dstNextHop: msg.fromnbr,
+				holdUntil:  holdUntil,
 			}
-			topologyTable[dst] = entries
+			topologyTable[msg.fromnbr] = entries
 			continue
 		}
 
-		entry, ok := entries[msg.src]
+		entry, ok := entries[dst]
 		if !ok {
-			// First time seeing this MPR for the destination.
-			entries[msg.src] = TopologyEntry{
-				dst:       dst,
-				dstMPR:    msg.src,
-				msSeqNum:  msg.seq,
-				holdUntil: holdUntil,
+			// First time seeing this destination for the neighbor.
+			entries[dst] = TopologyEntry{
+				dst:        dst,
+				dstNextHop: msg.fromnbr,
+				holdUntil:  holdUntil,
 			}
 			continue
-		}
-
-		// We've seen this (dst, mpr) pair already.
-		if entry.msSeqNum < msg.seq {
+		} else {
 			entry.holdUntil = holdUntil
-			entries[msg.src] = entry
+			entries[dst] = entry
 		}
 	}
 
@@ -441,12 +440,14 @@ func (n *Node) handleTC(msg *TCMessage) {
 	}
 
 	// Ignore TC messages we've already seen.
-	for _, entries := range n.topologyTable {
-		entry, ok := entries[msg.src]
-		if ok {
-			if entry.msSeqNum == msg.seq {
-				return
-			}
+	seq, ok := n.topologySequences[msg.src]
+	if !ok {
+		n.topologySequences[msg.src] = msg.seq
+	} else {
+		if msg.seq <= seq {
+			return
+		} else {
+			n.topologySequences[msg.src] = msg.seq
 		}
 	}
 
@@ -506,6 +507,8 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.outputLog = outputLog
 
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
+	n.topologySequences = make(map[NodeID]int)
+
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
