@@ -324,6 +324,10 @@ func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]Top
 }
 
 func (n *Node) handleTC(msg *TCMessage) {
+	// Ignore TC messages sent by this node.
+	if msg.src == n.id {
+		return
+	}
 
 	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.topologyHoldTime)
 
