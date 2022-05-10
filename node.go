@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"sort"
 	"time"
 )
@@ -57,10 +57,10 @@ type Node struct {
 	id NodeID
 
 	// outputLog is where the Node will write all messages that it has sent.
-	outputLog io.Writer
+	outputLog io.WriteCloser
 
 	// inputLog is where the Node will write all messages it has received.
-	inputLog io.Writer
+	inputLog io.WriteCloser
 
 	// input represents the Node's wireless receiver.
 	input <-chan interface{}
@@ -93,6 +93,10 @@ type Node struct {
 	// msSet
 	msSet map[NodeID]NodeID
 
+	// prevMSSet is the most recent TCMessage sent, enabling a check to be performed to determine if a new TCMessage
+	// needs to be sent.
+	prevMSSet []NodeID
+
 	// currentTime is the number of ticks since the node came online.
 	currentTime int
 
@@ -105,6 +109,12 @@ func (n *Node) run(ctx context.Context) {
 	// Continuously listen for new messages until done received by Controller.
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+	defer func(log io.WriteCloser) {
+		_ = log.Close()
+	}(n.inputLog)
+	defer func(log io.WriteCloser) {
+		_ = log.Close()
+	}(n.outputLog)
 
 	n.currentTime = 0
 	for _ = range ticker.C {
@@ -120,14 +130,14 @@ func (n *Node) run(ctx context.Context) {
 			}
 			log.Printf("node %d: received:\t%s\n", n.id, msg)
 
-			n.handler(msg)
+			go n.handler(msg)
 		default:
 		}
 
 		if n.currentTime%5 == 0 {
 			n.sendHello()
 		}
-		if n.currentTime%10 == 0 {
+		if n.currentTime%10 == 0 && len(n.msSet) > 0 {
 			n.sendTC()
 		}
 		if n.currentTime == n.nodeMsg.delay {
@@ -155,6 +165,7 @@ func (n *Node) run(ctx context.Context) {
 	}
 }
 
+// sendHello sends a HelloMessage for this node.
 func (n *Node) sendHello() {
 	// Gather one-hop neighbor entries.
 	biNeighbors := make([]NodeID, 0)
@@ -181,14 +192,39 @@ func (n *Node) sendHello() {
 	}
 	n.output <- hello
 	log.Printf("node %d: sent:\t%s", n.id, hello)
+	_, err := fmt.Fprintln(n.outputLog, hello)
+	if err != nil {
+		log.Panicf("node %d: unable to log hello msg to output: %s", n.id, err)
+	}
 }
 
+// sendTC sends a TCMessage if there has been a change in this nodes MS set.
 func (n *Node) sendTC() {
 	// Get the MS set node IDs to include in the TC message.
 	msSet := make([]NodeID, 0)
 	for _, id := range n.msSet {
 		msSet = append(msSet, id)
 	}
+	sort.SliceStable(msSet, func(i, j int) bool {
+		return msSet[i] < msSet[j]
+	})
+
+	changed := false
+	if len(n.prevMSSet) == len(msSet) {
+		for i, _ := range n.prevMSSet {
+			if n.prevMSSet[i] != msSet[i] {
+				changed = true
+				break
+			}
+		}
+	} else {
+		changed = true
+	}
+	// Only send a new TCMessage if the MS set has changed.
+	if !changed {
+		return
+	}
+	n.prevMSSet = msSet
 
 	tc := &TCMessage{
 		src:     n.id,
@@ -198,6 +234,10 @@ func (n *Node) sendTC() {
 	}
 	n.output <- tc
 	log.Printf("node %d: sent:\t%s", n.id, tc)
+	_, err := fmt.Fprintln(n.outputLog, tc)
+	if err != nil {
+		log.Panicf("node %d: unable to log tc msg to output: %s", n.id, err)
+	}
 
 	n.tcSequenceNum++
 }
@@ -231,11 +271,18 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 		entry.holdUntil = holdUntil
 
 		// Check if the link state should be updated.
+		included := false
 		for _, nodeID := range append(msg.unidir, append(msg.bidir, msg.mpr...)...) {
 			if nodeID == id {
-				entry.state = Bidirectional
+				included = true
 				break
 			}
+		}
+
+		if included {
+			entry.state = Bidirectional
+		} else {
+			entry.state = Unidirectional
 		}
 
 		oneHopNeighbors[msg.src] = entry
@@ -343,8 +390,11 @@ func (n *Node) handleData(msg *DataMessage) {
 	fmt.Printf("node %d: received message of type: %s\n", n.id, DataType)
 }
 
-func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int) map[NodeID]map[NodeID]TopologyEntry {
+func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int, id NodeID) map[NodeID]map[NodeID]TopologyEntry {
 	for _, dst := range msg.ms {
+		if dst == id {
+			continue
+		}
 		entries, ok := topologyTable[dst]
 		if !ok {
 			// First time seeing this destination
@@ -387,7 +437,28 @@ func (n *Node) handleTC(msg *TCMessage) {
 		return
 	}
 
-	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTime+n.topologyHoldTime)
+	// Ignore TC messages we've already seen.
+	for _, entries := range n.topologyTable {
+		entry, ok := entries[msg.src]
+		if ok {
+			if entry.msSeqNum == msg.seq {
+				return
+			}
+		}
+	}
+
+	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTime+n.topologyHoldTime, n.id)
+
+	// Only forward TC message if this node is an MPR of the neighbor which sent the TC message.
+	doFwd := false
+	for _, id := range n.msSet {
+		if id == msg.fromnbr {
+			doFwd = true
+		}
+	}
+	if !doFwd {
+		return
+	}
 
 	// Update the from-neighbor field.
 	msg.fromnbr = n.id
@@ -395,7 +466,11 @@ func (n *Node) handleTC(msg *TCMessage) {
 	// Send the updated msg.
 	n.output <- msg
 
-	log.Printf("node %d: sent:\t\t%s", n.id, msg)
+	log.Printf("node %d: sent:\t%s", n.id, msg)
+	_, err := fmt.Fprintln(n.outputLog, msg)
+	if err != nil {
+		log.Panicf("node %d: unable to log tc msg to output: %s", n.id, err)
+	}
 }
 
 type NodeMsg struct {
@@ -411,12 +486,26 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.input = input
 	n.output = output
 	n.nodeMsg = nodeMsg
-	n.inputLog = ioutil.Discard
-	n.outputLog = ioutil.Discard
+
+	_ = os.Mkdir("./log", 0750)
+
+	// Create logging files for this node.
+	inputLog, err := os.Create(fmt.Sprintf("./log/%d_received.txt", n.id))
+	if err != nil {
+		panic(err)
+	}
+	n.inputLog = inputLog
+	outputLog, err := os.Create(fmt.Sprintf("./log/%d_sent.txt", n.id))
+	if err != nil {
+		panic(err)
+	}
+	n.outputLog = outputLog
+
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
+	n.prevMSSet = make([]NodeID, 0)
 	n.neighborHoldTime = 15
 	return &n
 }

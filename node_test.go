@@ -295,6 +295,7 @@ func Test_updateTopologyTable1(t *testing.T) {
 		msg           *TCMessage
 		topologyTable map[NodeID]map[NodeID]TopologyEntry
 		holdTime      int
+		id            NodeID
 	}
 	tests := []struct {
 		name string
@@ -375,10 +376,52 @@ func Test_updateTopologyTable1(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ignore dst if same as id",
+			args: args{
+				msg: &TCMessage{
+					src:     1,
+					fromnbr: 1,
+					seq:     0,
+					ms: []NodeID{
+						NodeID(2),
+						NodeID(0),
+					},
+				},
+				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
+					NodeID(2): {
+						NodeID(3): TopologyEntry{
+							dst:       2,
+							dstMPR:    3,
+							msSeqNum:  0,
+							holdUntil: 30,
+						},
+					},
+				},
+				holdTime: 30,
+				id:       NodeID(0),
+			},
+			want: map[NodeID]map[NodeID]TopologyEntry{
+				NodeID(2): {
+					NodeID(1): TopologyEntry{
+						dst:       2,
+						dstMPR:    1,
+						msSeqNum:  0,
+						holdUntil: 30,
+					},
+					NodeID(3): TopologyEntry{
+						dst:       2,
+						dstMPR:    3,
+						msSeqNum:  0,
+						holdUntil: 30,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := updateTopologyTable(tt.args.msg, tt.args.topologyTable, tt.args.holdTime); !reflect.DeepEqual(got, tt.want) {
+			if got := updateTopologyTable(tt.args.msg, tt.args.topologyTable, tt.args.holdTime, tt.args.id); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("updateTopologyTable() = %v, want %v", got, tt.want)
 			}
 		})
