@@ -74,14 +74,17 @@ type Node struct {
 
 	routingTable []RoutingEntry
 
+	// oneHopNeighbors is the set of 1-hop neighbors discovered by this node.
 	oneHopNeighbors map[NodeID]OneHopNeighborEntry
 
 	// twoHopNeighbors represents the 2-hop neighbors that can be reached via a 1-hop neighbor.
 	// The second map is used for uniqueness and merely maps NodeID(s) to themselves.
 	twoHopNeighbors map[NodeID]map[NodeID]NodeID
 
+	// currentTime is the number of ticks since the node came online.
 	currentTime int
 
+	// neighborHoldTime is how long, in ticks, neighbor table entries will be held until they are expelled.
 	neighborHoldTime int
 }
 
