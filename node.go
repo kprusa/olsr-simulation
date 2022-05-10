@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,7 +18,7 @@ type TopologyEntry struct {
 	dstMPR NodeID
 
 	// msSeqNum is the MPR selector (MS) sequence number, used to determine if a TCMessage contains new information.
-	msSeqNum uint
+	msSeqNum int
 
 	// holdUntil determines how long an entry will be held for before being expelled.
 	holdUntil int
@@ -89,6 +90,9 @@ type Node struct {
 	// The second map is used for uniqueness and merely maps NodeID(s) to themselves.
 	twoHopNeighbors map[NodeID]map[NodeID]NodeID
 
+	// msSet
+	msSet map[NodeID]NodeID
+
 	// currentTime is the number of ticks since the node came online.
 	currentTime int
 
@@ -97,7 +101,7 @@ type Node struct {
 }
 
 // run starts the Node "listening" for messages.
-func (n *Node) run(done <-chan struct{}) {
+func (n *Node) run(ctx context.Context) {
 	// Continuously listen for new messages until done received by Controller.
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -105,6 +109,10 @@ func (n *Node) run(done <-chan struct{}) {
 	n.currentTime = 0
 	for _ = range ticker.C {
 		select {
+		case <-ctx.Done():
+			log.Printf("node %d: recevied done message", n.id)
+			return
+
 		case msg := <-n.input:
 			_, err := fmt.Fprintln(n.inputLog, msg)
 			if err != nil {
@@ -113,25 +121,68 @@ func (n *Node) run(done <-chan struct{}) {
 			log.Printf("node %d: received:\t\t%s\n", n.id, msg)
 
 			n.handler(msg)
-
-		case <-done:
-			log.Printf("node %d: recevied done message", n.id)
-			return
-
-		// Send the desired message after the specified delay.
-		case <-time.After(n.nodeMsg.delay):
-			n.output <- &DataMessage{
-				src:     0,
-				dst:     1,
-				nxtHop:  1,
-				fromnbr: 0,
-				data:    n.nodeMsg.msg,
-			}
+		default:
 		}
-		// TODO: Update routing and topology tables.
+
+		if n.currentTime%5 == 0 {
+			n.sendHello()
+		}
+		if n.currentTime%10 == 0 {
+			n.sendTC()
+		}
+		if n.currentTime == n.nodeMsg.delay {
+			// send data msg
+		}
+
+		// TODO: Remove old entries from the neighbor tables.
+		// TODO: Remove old entries from the TC tables.
+		// TODO: Recalculate the routing table, if necessary.
 
 		n.currentTime++
 	}
+}
+
+func (n *Node) sendHello() {
+	// Gather one-hop neighbor entries.
+	biNeighbors := make([]NodeID, 0)
+	uniNeighbors := make([]NodeID, 0)
+	mprNeighbors := make([]NodeID, 0)
+	for _, o := range n.oneHopNeighbors {
+		switch o.state {
+		case Unidirectional:
+			uniNeighbors = append(uniNeighbors, o.neighborID)
+		case Bidirectional:
+			biNeighbors = append(biNeighbors, o.neighborID)
+		case MPR:
+			mprNeighbors = append(mprNeighbors, o.neighborID)
+		default:
+			log.Panicf("node %d: invalid one-hop neighbor type: %d", n.id, o.state)
+		}
+	}
+
+	n.output <- HelloMessage{
+		src:    n.id,
+		unidir: uniNeighbors,
+		bidir:  biNeighbors,
+		mpr:    mprNeighbors,
+	}
+}
+
+func (n *Node) sendTC() {
+	// Get the MS set node IDs to include in the TC message.
+	msSet := make([]NodeID, 0)
+	for _, id := range n.msSet {
+		msSet = append(msSet, id)
+	}
+
+	n.output <- TCMessage{
+		src:     n.id,
+		fromnbr: n.id,
+		seq:     n.tcSequenceNum,
+		ms:      msSet,
+	}
+
+	n.tcSequenceNum++
 }
 
 // handler de-multiplexes messages to their respective handlers.
@@ -251,6 +302,25 @@ func (n *Node) handleHello(msg *HelloMessage) {
 
 	n.oneHopNeighbors = calculateMPRs(n.oneHopNeighbors, n.twoHopNeighbors)
 
+	// Update the msSet
+	_, ok := n.msSet[msg.src]
+	isMS := false
+	// Check if this node is in the MPR set from the HELLO message.
+	for _, nodeID := range msg.mpr {
+		if nodeID == n.id {
+			isMS = true
+			break
+		}
+	}
+	// Previously an MS, but no longer are.
+	if ok && !isMS {
+		delete(n.msSet, msg.src)
+	}
+	// New MS.
+	if !ok && isMS {
+		n.msSet[msg.src] = msg.src
+	}
+
 	// Gather one-hop neighbor entries.
 	biNeighbors := make([]NodeID, 0)
 	uniNeighbors := make([]NodeID, 0)
@@ -342,7 +412,7 @@ func (n *Node) handleTC(msg *TCMessage) {
 
 type NodeMsg struct {
 	msg   string
-	delay time.Duration
+	delay int
 	dst   NodeID
 }
 
@@ -358,6 +428,7 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
+	n.msSet = make(map[NodeID]NodeID)
 	n.neighborHoldTime = 15
 	return &n
 }

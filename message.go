@@ -59,7 +59,7 @@ func (m DataMessage) String() string {
 type TCMessage struct {
 	src     NodeID
 	fromnbr NodeID
-	seq     uint
+	seq     int
 	ms      []NodeID
 }
 
