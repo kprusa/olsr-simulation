@@ -92,7 +92,7 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := updateOneHopNeighbors(tt.args.msg, tt.args.oneHopNeighbors, tt.args.time, tt.args.holdTime, tt.args.id); !reflect.DeepEqual(got, tt.want) {
+			if got := updateOneHopNeighbors(tt.args.msg, tt.args.oneHopNeighbors, tt.args.time+tt.args.holdTime, tt.args.id); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("updateOneHopNeighbors() = %v, want %v", got, tt.want)
 			}
 		})
@@ -291,18 +291,18 @@ func Test_updateTopologyTable1(t *testing.T) {
 			want: map[NodeID]map[NodeID]TopologyEntry{
 				NodeID(2): {
 					NodeID(1): TopologyEntry{
-						dst:         2,
-						dstMPR:      1,
-						msSeqNum:    0,
-						holdingTime: 30,
+						dst:       2,
+						dstMPR:    1,
+						msSeqNum:  0,
+						holdUntil: 30,
 					},
 				},
 				NodeID(3): {
 					NodeID(1): TopologyEntry{
-						dst:         3,
-						dstMPR:      1,
-						msSeqNum:    0,
-						holdingTime: 30,
+						dst:       3,
+						dstMPR:    1,
+						msSeqNum:  0,
+						holdUntil: 30,
 					},
 				},
 			},
@@ -321,10 +321,10 @@ func Test_updateTopologyTable1(t *testing.T) {
 				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
 					NodeID(2): {
 						NodeID(3): TopologyEntry{
-							dst:         2,
-							dstMPR:      3,
-							msSeqNum:    0,
-							holdingTime: 30,
+							dst:       2,
+							dstMPR:    3,
+							msSeqNum:  0,
+							holdUntil: 30,
 						},
 					},
 				},
@@ -333,16 +333,16 @@ func Test_updateTopologyTable1(t *testing.T) {
 			want: map[NodeID]map[NodeID]TopologyEntry{
 				NodeID(2): {
 					NodeID(1): TopologyEntry{
-						dst:         2,
-						dstMPR:      1,
-						msSeqNum:    0,
-						holdingTime: 30,
+						dst:       2,
+						dstMPR:    1,
+						msSeqNum:  0,
+						holdUntil: 30,
 					},
 					NodeID(3): TopologyEntry{
-						dst:         2,
-						dstMPR:      3,
-						msSeqNum:    0,
-						holdingTime: 30,
+						dst:       2,
+						dstMPR:    3,
+						msSeqNum:  0,
+						holdUntil: 30,
 					},
 				},
 			},

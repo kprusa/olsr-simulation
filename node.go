@@ -19,8 +19,8 @@ type TopologyEntry struct {
 	// msSeqNum is the MPR selector (MS) sequence number, used to determine if a TCMessage contains new information.
 	msSeqNum uint
 
-	// holdingTime determines how long an entry will be held for before being expelled.
-	holdingTime int
+	// holdUntil determines how long an entry will be held for before being expelled.
+	holdUntil int
 }
 
 type RoutingEntry struct {
@@ -149,18 +149,18 @@ func (n *Node) handler(msg interface{}) {
 }
 
 // updateOneHopNeighbors adds all new one-hop neighbors that can be reached.
-func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopNeighborEntry, time, holdTime int, id NodeID) map[NodeID]OneHopNeighborEntry {
+func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopNeighborEntry, holdUntil int, id NodeID) map[NodeID]OneHopNeighborEntry {
 	entry, ok := oneHopNeighbors[msg.src]
 	if !ok {
 		// First time neighbor
 		oneHopNeighbors[msg.src] = OneHopNeighborEntry{
 			neighborID: msg.src,
 			state:      Unidirectional,
-			holdUntil:  time + holdTime,
+			holdUntil:  holdUntil,
 		}
 	} else {
 		// Already unidirectional neighbor
-		entry.holdUntil = time + holdTime
+		entry.holdUntil = holdUntil
 
 		// Check if the link state should be updated.
 		for _, nodeID := range append(msg.unidir, msg.bidir...) {
@@ -244,7 +244,7 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 // handleHello handles the processing of a HelloMessage.
 func (n *Node) handleHello(msg *HelloMessage) {
 	// Update one-hop neighbors.
-	n.oneHopNeighbors = updateOneHopNeighbors(msg, n.oneHopNeighbors, n.currentTime, n.neighborHoldTime, n.id)
+	n.oneHopNeighbors = updateOneHopNeighbors(msg, n.oneHopNeighbors, n.currentTime+n.neighborHoldTime, n.id)
 
 	// Update two-hop neighbors
 	n.twoHopNeighbors = updateTwoHopNeighbors(msg, n.twoHopNeighbors, n.id)
@@ -292,10 +292,10 @@ func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]Top
 			// First time seeing this destination
 			entries = make(map[NodeID]TopologyEntry)
 			entries[msg.src] = TopologyEntry{
-				dst:         dst,
-				dstMPR:      msg.src,
-				msSeqNum:    msg.seq,
-				holdingTime: holdUntil,
+				dst:       dst,
+				dstMPR:    msg.src,
+				msSeqNum:  msg.seq,
+				holdUntil: holdUntil,
 			}
 			topologyTable[dst] = entries
 			continue
@@ -305,17 +305,17 @@ func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]Top
 		if !ok {
 			// First time seeing this MPR for the destination.
 			entries[msg.src] = TopologyEntry{
-				dst:         dst,
-				dstMPR:      msg.src,
-				msSeqNum:    msg.seq,
-				holdingTime: holdUntil,
+				dst:       dst,
+				dstMPR:    msg.src,
+				msSeqNum:  msg.seq,
+				holdUntil: holdUntil,
 			}
 			continue
 		}
 
 		// We've seen this (dst, mpr) pair already.
 		if entry.msSeqNum < msg.seq {
-			entry.holdingTime = holdUntil
+			entry.holdUntil = holdUntil
 			entries[msg.src] = entry
 		}
 	}
@@ -329,7 +329,7 @@ func (n *Node) handleTC(msg *TCMessage) {
 		return
 	}
 
-	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.topologyHoldTime)
+	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTime+n.topologyHoldTime)
 
 	// Update the from-neighbor field.
 	msg.fromnbr = n.id
@@ -355,6 +355,7 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.nodeMsg = nodeMsg
 	n.inputLog = ioutil.Discard
 	n.outputLog = ioutil.Discard
+	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.neighborHoldTime = 15
