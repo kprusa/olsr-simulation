@@ -24,18 +24,13 @@ const (
 
 // HelloMessage represents a HELLO OLSR message.
 type HelloMessage struct {
-	type_  MsgType
 	src    NodeID
 	unidir []NodeID
 	bidir  []NodeID
 	mpr    []NodeID
 }
 
-func (m *HelloMessage) Type() MsgType {
-	return HelloType
-}
-
-func (m *HelloMessage) String() string {
+func (m HelloMessage) String() string {
 	f := "* %d HELLO UNIDIR %s BIDIR %s MPR %s"
 	return fmt.Sprintf(
 		f,
@@ -48,7 +43,6 @@ func (m *HelloMessage) String() string {
 
 // DataMessage represents a DATA OLSR message.
 type DataMessage struct {
-	type_   MsgType
 	src     NodeID
 	dst     NodeID
 	nxtHop  NodeID
@@ -56,34 +50,20 @@ type DataMessage struct {
 	data    string
 }
 
-func (m *DataMessage) Type() MsgType {
-	return DataType
-}
-
-func (m *DataMessage) String() string {
+func (m DataMessage) String() string {
 	f := "%d %d DATA %d %d %s"
 	return fmt.Sprintf(f, m.nxtHop, m.fromnbr, m.src, m.dst, m.data)
 }
 
 // TCMessage represents a topology control (TC) OLSR message.
 type TCMessage struct {
-	type_  MsgType
-	src    NodeID
-	frombr NodeID
-	seq    uint
-	ms     []NodeID
+	src     NodeID
+	fromnbr NodeID
+	seq     uint
+	ms      []NodeID
 }
 
-func (m *TCMessage) Type() MsgType {
-	return TCType
-}
-
-func (m *TCMessage) String() string {
+func (m TCMessage) String() string {
 	f := "* %d TC %d %d MS %s"
-	return fmt.Sprintf(f, m.frombr, m.src, m.seq, separatedString(m.ms, " "))
-}
-
-type Message interface {
-	fmt.Stringer
-	Type() MsgType
+	return fmt.Sprintf(f, m.fromnbr, m.src, m.seq, separatedString(m.ms, " "))
 }

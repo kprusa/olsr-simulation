@@ -18,7 +18,6 @@ func TestTCMessage_String(t *testing.T) {
 		{
 			name: "check format",
 			fields: fields{
-				type_:  TCType,
 				src:    0,
 				frombr: 10,
 				seq:    2,
@@ -30,11 +29,10 @@ func TestTCMessage_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &TCMessage{
-				type_:  tt.fields.type_,
-				src:    tt.fields.src,
-				frombr: tt.fields.frombr,
-				seq:    tt.fields.seq,
-				ms:     tt.fields.ms,
+				src:     tt.fields.src,
+				fromnbr: tt.fields.frombr,
+				seq:     tt.fields.seq,
+				ms:      tt.fields.ms,
 			}
 			if got := m.String(); got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)
@@ -73,7 +71,6 @@ func TestDataMessage_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &DataMessage{
-				type_:   tt.fields.type_,
 				src:     tt.fields.src,
 				dst:     tt.fields.dst,
 				nxtHop:  tt.fields.nxtHop,
@@ -115,7 +112,6 @@ func TestHelloMessage_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &HelloMessage{
-				type_:  tt.fields.type_,
 				src:    tt.fields.src,
 				unidir: tt.fields.unidir,
 				bidir:  tt.fields.bidir,
