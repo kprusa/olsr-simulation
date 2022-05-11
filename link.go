@@ -67,10 +67,7 @@ func parseLinkState(state string) (*LinkState, error) {
 	}
 
 	// Parse labels
-	lre, err := regexp.Compile("^\\d$")
-	if err != nil {
-		panic(err)
-	}
+	lre := regexp.MustCompile(`^\d$`)
 	if !lre.Match([]byte(splitState[2])) {
 		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid id: '%s': must be '^[0-9]$'", splitState[2])}
 	}

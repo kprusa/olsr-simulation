@@ -64,7 +64,7 @@ func (c *Controller) handleHello(hm *HelloMessage, epoch time.Time) {
 }
 
 func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
-	// Send the hello message along all neighbor links that are UP.
+	// Send the TC message along all neighbor links that are UP.
 	for _, node := range c.nodes {
 		if node.id == tcm.src {
 			continue
@@ -81,7 +81,7 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 }
 
 func (c *Controller) handleData(dm *DataMessage, epoch time.Time) {
-	// Send the hello message along all neighbor links that are UP.
+	// Send the data message to the specified next-hop, if the link is UP.
 	q := QueryMsg{
 		fromNode:    dm.fromnbr,
 		toNode:      dm.nxtHop,
