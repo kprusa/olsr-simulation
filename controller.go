@@ -1,8 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"log"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -86,7 +93,7 @@ func (c *Controller) handleData(dm *DataMessage, epoch time.Time) {
 }
 
 // Start runs all nodes and starts the controller.
-func (c *Controller) Start() {
+func (c *Controller) Start(ticks int) {
 	// Define a context to enable sending a done message to all nodes.
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
@@ -124,7 +131,7 @@ func (c *Controller) Start() {
 
 	// Launch a go routine to send a done message to all nodes after the timer expires.
 	go func() {
-		<-time.NewTimer(c.tickDuration * 240).C
+		<-time.NewTimer(c.tickDuration * time.Duration(ticks)).C
 		cancel()
 		// Flush the input link, ensuring all nodes will receive the done message.
 		for len(c.inputLink) > 0 {
@@ -142,11 +149,58 @@ type NodeConfig struct {
 	msg NodeMsg
 }
 
+// ReadNodeConfiguration parses newline separated node configurations from an io.ReadCloser.
+// Configurations should be in the form: {src} {dst} "{msg}" {delay}
+func ReadNodeConfiguration(in io.ReadCloser) ([]NodeConfig, error) {
+	configs := make([]NodeConfig, 0)
+
+	re := regexp.MustCompile(`(?P<src>\d{1,2}) (?P<dst>\d{1,2}) (?P<msg>".*?") (?P<delay>\d{1,2})`)
+
+	r := bufio.NewReader(in)
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+		line = strings.TrimSuffix(line, "\n")
+		matches := re.FindStringSubmatch(line)
+
+		id, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return nil, fmt.Errorf("invalid node config: id is not an int: %s", line)
+		}
+		dst, err := strconv.Atoi(matches[2])
+		if err != nil {
+			return nil, fmt.Errorf("invalid node config: dst is not an int: %s", line)
+		}
+		delay, err := strconv.Atoi(matches[4])
+		if err != nil {
+			return nil, fmt.Errorf("invalid node config: delay is not an int: %s", line)
+		}
+
+		c := NodeConfig{
+			id: NodeID(id),
+			msg: NodeMsg{
+				msg:   matches[3][1 : len(matches[3])-1],
+				delay: delay,
+				dst:   NodeID(dst),
+				sent:  false,
+			},
+		}
+
+		configs = append(configs, c)
+	}
+	return configs, nil
+}
+
 // NewController creates a Controller based on the supplied network typology.
-func NewController(topology NetworkTypology) *Controller {
+func NewController(topology NetworkTypology, tickDuration time.Duration) *Controller {
 	c := &Controller{}
 	c.topology = topology
 	c.nodeChannels = make(map[NodeID]chan interface{})
-	c.tickDuration = time.Millisecond * 250
+	c.tickDuration = tickDuration
 	return c
 }

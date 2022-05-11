@@ -1,80 +1,48 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
+	"time"
 )
 
 func main() {
-	f, err := os.Open("./testdata/test_topology.txt")
-	if err != nil {
-		panic(err)
+	tf := flag.String("tf", "", "Topology file path (Required)")
+	nf := flag.String("nf", "", "Node configuration file path (Required)")
+	t := flag.Int("t", 1000, "Tick duration in milliseconds. Specifies how fast the simulation will run")
+	d := flag.Int("rt", 120, "Number of ticks to run the simulation for.")
+	flag.Parse()
+
+	if *tf == "" || *nf == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
 
+	f, err := os.Open(*tf)
+	if err != nil {
+		fmt.Printf("unable to open topology file: %s", *tf)
+		os.Exit(1)
+	}
 	nwt, err := NewNetworkTypology(f)
 	if err != nil {
-		panic(err)
+		fmt.Printf("invalid network topology file: %s", err)
+		os.Exit(1)
 	}
 
-	configs := []NodeConfig{
-		{
-			id: 0,
-			msg: NodeMsg{
-				msg:   "(0 -> 2)",
-				delay: 30,
-				dst:   2,
-			},
-		},
-		{
-			id: 1,
-			msg: NodeMsg{
-				msg:   "(1 -> 4)",
-				delay: 40,
-				dst:   4,
-			},
-		},
-		{
-			id: 2,
-			msg: NodeMsg{
-				msg:   "(2 -> 3)",
-				delay: 40,
-				dst:   3,
-			},
-		},
-		{
-			id: 3,
-			msg: NodeMsg{
-				msg:   "(3 -> 6)",
-				delay: 40,
-				dst:   6,
-			},
-		},
-		{
-			id: 4,
-			msg: NodeMsg{
-				msg:   "(4 -> 0)",
-				delay: 30,
-				dst:   0,
-			},
-		},
-		{
-			id: 5,
-			msg: NodeMsg{
-				msg:   "(5 -> 1)",
-				delay: 30,
-				dst:   1,
-			},
-		},
-		{
-			id: 6,
-			msg: NodeMsg{
-				msg:   "(6 -> 5)",
-				delay: 30,
-				dst:   5,
-			},
-		},
+	f, err = os.Open(*nf)
+	if err != nil {
+		fmt.Printf("unable to open topology file: %s", *tf)
+		os.Exit(1)
+	}
+	configs, err := ReadNodeConfiguration(f)
+	if err != nil {
+		fmt.Printf("invalid node configuration file: %s", err)
+		os.Exit(1)
 	}
 
-	c := NewController(*nwt)
+	td := time.Millisecond * time.Duration(*t)
+	c := NewController(*nwt, td)
 	c.Initialize(configs)
-	c.Start()
+	c.Start(*d)
 }

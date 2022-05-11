@@ -612,11 +612,11 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.routesChanged = true
 
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
-	n.topologyHoldTime = 60
+	n.topologyHoldTime = 30
 
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
-	n.neighborHoldTime = 20
+	n.neighborHoldTime = 15
 	return &n
 }
