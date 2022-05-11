@@ -2,20 +2,22 @@
 
 INTRODUCTION
 
-    This project uses Go to simulate a OSLR ad-hoc network. For the simulation, each node is run as a go routine, with
-    an input and output channel. A controller is used to facilitate message interchange based on a supplied network
-    topology.
+    This project uses Go to simulate a OSLR ad-hoc network. For the simulation, each node
+    is run as a go routine, with an input and output channel. A controller is used to
+    facilitate message interchange based on a supplied network topology.
 
     There is a single executable, with no need to spawn additional processes.
 
-    All communication is facilitated through Go channels and each node logs all communication to files.
+    All communication is facilitated through Go channels and each node logs all
+    communication to files.
 
 ======================
 
 SETUP
 
-    Simply execute setup.sh. The script will install Go and build the executable. Once the script successfully runs,
-    an executable named "network-simulation" will be created in the working directory.
+    Simply execute setup.sh. The script will install Go and build the executable. Once
+    the script successfully runs, an executable named "network-simulation" will be
+    created in the working directory.
 
 ======================
 
@@ -25,19 +27,23 @@ EXECUTION
 
     During execution, all messages sent and received by nodes will be logged to stdout.
 
-    Post execution, a new directory "log" will appear. This directory will include three log files for each node:
+    Post execution, a new directory "log" will appear. This directory will include three
+    log files for each node:
 
         {NODE_ID}_in.txt:
 
-            A log file containing all messages that the given node received during the execution.
+            A log file containing all messages that the given node received during the
+            execution.
 
         {NODE_ID}_out.txt:
 
-            A log file containing all messages that the given node sent during the execution.
+            A log file containing all messages that the given node sent during the
+            execution.
 
         {NODE_ID}_received.txt:
 
-            A log file containing all data that the given node received during the execution.
+            A log file containing all data that the given node received during the
+            execution.
 
     ----------------------
 
@@ -47,8 +53,9 @@ EXECUTION
 
             Node configuration file path.
 
-            A path to a text file which includes newline separated node configurations. These configurations are the
-            same as those described in the project specification.
+            A path to a text file which includes newline separated node configurations.
+            These configurations are the same as those described in the project
+            specification.
 
             The configurations have the following format:
 
@@ -68,8 +75,8 @@ EXECUTION
 
             Topology file path.
 
-            A path to a text file which includes newline separated topology values. These values are the same as those
-            described in the project specification.
+            A path to a text file which includes newline separated topology values. These
+            values are the same as those described in the project specification.
 
             The values have the following format:
 
@@ -90,7 +97,8 @@ EXECUTION
 
         -t int
 
-            Tick duration in milliseconds. Specifies how fast the simulation will run. (default 1000)
+            Tick duration in milliseconds. Specifies how fast the simulation will run.
+            (default 1000)
 
         -rt int
 
@@ -106,9 +114,10 @@ EXAMPLE EXECUTION
 
     BASIC EXAMPLE
 
-        The following command uses the included testdata to run a demonstration simulation.
+        The following command uses the included testdata to run a demonstration
+        simulation.
 
-            ./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
+        ./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
 
     ----------------------
 
@@ -116,7 +125,7 @@ EXAMPLE EXECUTION
 
         The following command sets the tick rate to 100ms, increasing the simulation speed.
 
-            ./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
+        ./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
 
     ----------------------
 
