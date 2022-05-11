@@ -306,11 +306,11 @@ func Test_updateTopologyTable1(t *testing.T) {
 			name: "new nodes",
 			args: args{
 				msg: &TCMessage{
-					src:     1,
+					src:     2,
 					fromnbr: 1,
 					seq:     0,
 					ms: []NodeID{
-						NodeID(2),
+						NodeID(1),
 						NodeID(3),
 					},
 				},
@@ -318,16 +318,18 @@ func Test_updateTopologyTable1(t *testing.T) {
 				holdTime:      30,
 			},
 			want: map[NodeID]map[NodeID]TopologyEntry{
-				NodeID(1): {
-					NodeID(2): TopologyEntry{
-						dst:        2,
-						dstNextHop: 1,
+				NodeID(2): {
+					NodeID(1): TopologyEntry{
+						dst:        1,
+						originator: 2,
 						holdUntil:  30,
+						seq:        0,
 					},
 					NodeID(3): TopologyEntry{
 						dst:        3,
-						dstNextHop: 1,
+						originator: 2,
 						holdUntil:  30,
+						seq:        0,
 					},
 				},
 			},
@@ -347,8 +349,9 @@ func Test_updateTopologyTable1(t *testing.T) {
 					NodeID(3): {
 						NodeID(2): TopologyEntry{
 							dst:        2,
-							dstNextHop: 3,
+							originator: 3,
 							holdUntil:  30,
+							seq:        0,
 						},
 					},
 				},
@@ -358,15 +361,17 @@ func Test_updateTopologyTable1(t *testing.T) {
 				NodeID(3): {
 					NodeID(2): TopologyEntry{
 						dst:        2,
-						dstNextHop: 3,
+						originator: 3,
 						holdUntil:  30,
+						seq:        0,
 					},
 				},
 				NodeID(1): {
 					NodeID(2): TopologyEntry{
 						dst:        2,
-						dstNextHop: 1,
+						originator: 1,
 						holdUntil:  30,
+						seq:        0,
 					},
 				},
 			},
@@ -391,8 +396,51 @@ func Test_updateTopologyTable1(t *testing.T) {
 				NodeID(1): {
 					NodeID(2): TopologyEntry{
 						dst:        2,
-						dstNextHop: 1,
+						originator: 1,
 						holdUntil:  30,
+						seq:        0,
+					},
+				},
+			},
+		},
+		{
+			name: "update if larger sequence",
+			args: args{
+				msg: &TCMessage{
+					src:     1,
+					fromnbr: 1,
+					seq:     1,
+					ms: []NodeID{
+						NodeID(2),
+						NodeID(3),
+					},
+				},
+				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
+					NodeID(1): {
+						NodeID(2): TopologyEntry{
+							dst:        2,
+							originator: 1,
+							holdUntil:  23,
+							seq:        0,
+						},
+					},
+				},
+				holdTime: 30,
+				id:       NodeID(0),
+			},
+			want: map[NodeID]map[NodeID]TopologyEntry{
+				NodeID(1): {
+					NodeID(2): TopologyEntry{
+						dst:        2,
+						originator: 1,
+						holdUntil:  30,
+						seq:        1,
+					},
+					NodeID(3): TopologyEntry{
+						dst:        3,
+						originator: 1,
+						holdUntil:  30,
+						seq:        1,
 					},
 				},
 			},

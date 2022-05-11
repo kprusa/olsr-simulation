@@ -14,11 +14,15 @@ type TopologyEntry struct {
 	// dst is the MPR selector in the received TCMessage.
 	dst NodeID
 
-	// dstNextHop is the originator of the TCMessage (last-hop node to the destination).
-	dstNextHop NodeID
+	// FIXME: This needs to be changed to the originator address of the TC message.
+	// originator is the originator of the TCMessage (last-hop node to the destination).
+	originator NodeID
 
 	// holdUntil determines how long an entry will be held for before being expelled.
 	holdUntil int
+
+	// seq
+	seq int
 }
 
 type RoutingEntry struct {
@@ -84,9 +88,6 @@ type Node struct {
 	// topologyHoldTime is how long, in ticks, topology table entries will be held until they are expelled.
 	topologyHoldTime int
 
-	// topologySequences maps each NodeID which this node has received a TCMessage from to that Node's sequence number.
-	topologySequences map[NodeID]int
-
 	// tcSequenceNum is the current TCMessage sequence number.
 	tcSequenceNum int
 
@@ -99,10 +100,6 @@ type Node struct {
 
 	// msSet
 	msSet map[NodeID]NodeID
-
-	// prevMSSet is the most recent TCMessage sent, enabling a check to be performed to determine if a new TCMessage
-	// needs to be sent.
-	prevMSSet []NodeID
 
 	// currentTick is the number of ticks since the node came online.
 	currentTick int
@@ -133,7 +130,7 @@ func (n *Node) run(ctx context.Context) {
 	}(n.outputLog)
 
 	n.currentTick = 0
-	for _ = range ticker.C {
+	for range ticker.C {
 		select {
 		case <-ctx.Done():
 			log.Printf("node %d: recevied done message", n.id)
@@ -249,7 +246,7 @@ func (n *Node) sendHello() {
 	}
 }
 
-// sendTC sends a TCMessage if there has been a change in this nodes MS set.
+// sendTC sends a TCMessage including the most recent ms set for this node.
 func (n *Node) sendTC() {
 	// Get the MS set node IDs to include in the TC message.
 	msSet := make([]NodeID, 0)
@@ -259,23 +256,6 @@ func (n *Node) sendTC() {
 	sort.SliceStable(msSet, func(i, j int) bool {
 		return msSet[i] < msSet[j]
 	})
-
-	changed := false
-	if len(n.prevMSSet) == len(msSet) {
-		for i, _ := range n.prevMSSet {
-			if n.prevMSSet[i] != msSet[i] {
-				changed = true
-				break
-			}
-		}
-	} else {
-		changed = true
-	}
-	// Only send a new TCMessage if the MS set has changed.
-	if !changed {
-		return
-	}
-	n.prevMSSet = msSet
 
 	tc := &TCMessage{
 		src:     n.id,
@@ -309,6 +289,7 @@ func (n *Node) handler(msg interface{}) {
 
 // calculateRoutingTable calculates all reachable destinations based on the topologyTable.
 func (n *Node) calculateRoutingTable() {
+	// FIXME: Perform proper routing based on the specification.
 	// Wipe the table clean, ensuring no stale routes.
 	n.routingTable = make(map[NodeID]RoutingEntry)
 
@@ -319,7 +300,7 @@ func (n *Node) calculateRoutingTable() {
 				// First time seeing this destination.
 				n.routingTable[entry.dst] = RoutingEntry{
 					dst:     entry.dst,
-					nextHop: entry.dstNextHop,
+					nextHop: 0,
 					// TODO: Determine what to put for distance.
 					distance: 0,
 				}
@@ -403,7 +384,7 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 			reaches int
 		}{id: neighbor, reaches: len(twoHops)})
 
-		for k, _ := range twoHops {
+		for k := range twoHops {
 			remainingTwoHops[k] = k
 		}
 	}
@@ -422,7 +403,7 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 
 		mprs[maxTwoHops.id] = maxTwoHops.id
 
-		for k, _ := range twoHopNeighbors[maxTwoHops.id] {
+		for k := range twoHopNeighbors[maxTwoHops.id] {
 			delete(remainingTwoHops, k)
 		}
 	}
@@ -446,14 +427,14 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 // handleHello handles the processing of a HelloMessage.
 func (n *Node) handleHello(msg *HelloMessage) {
 	// Ignore hello messages sent out-of-order
-	seq, ok := n.topologySequences[msg.src]
+	seq, ok := n.helloSequences[msg.src]
 	if !ok {
-		n.topologySequences[msg.src] = msg.seq
+		n.helloSequences[msg.src] = msg.seq
 	} else {
 		if msg.seq <= seq {
 			return
 		} else {
-			n.topologySequences[msg.src] = msg.seq
+			n.helloSequences[msg.src] = msg.seq
 		}
 	}
 
@@ -499,36 +480,31 @@ func (n *Node) handleData(msg *DataMessage) {
 }
 
 func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int, id NodeID) map[NodeID]map[NodeID]TopologyEntry {
+	entries, ok := topologyTable[msg.src]
+	if ok {
+		// Check if sequence number is new.
+		for _, dst := range msg.ms {
+			entry, ok := entries[dst]
+			if ok && entry.seq > msg.seq {
+				return topologyTable
+			}
+		}
+	}
+	// New sequence TC message. Clear all old entries and add new entries.
+	topologyTable[msg.src] = make(map[NodeID]TopologyEntry)
+
 	for _, dst := range msg.ms {
 		if dst == id {
 			continue
 		}
-		entries, ok := topologyTable[msg.fromnbr]
-		if !ok {
-			// First time seeing this destination
-			entries = make(map[NodeID]TopologyEntry)
-			entries[dst] = TopologyEntry{
-				dst:        dst,
-				dstNextHop: msg.fromnbr,
-				holdUntil:  holdUntil,
-			}
-			topologyTable[msg.fromnbr] = entries
-			continue
+		entries, _ := topologyTable[msg.src]
+		entries[dst] = TopologyEntry{
+			dst:        dst,
+			originator: msg.src,
+			holdUntil:  holdUntil,
+			seq:        msg.seq,
 		}
-
-		entry, ok := entries[dst]
-		if !ok {
-			// First time seeing this destination for the neighbor.
-			entries[dst] = TopologyEntry{
-				dst:        dst,
-				dstNextHop: msg.fromnbr,
-				holdUntil:  holdUntil,
-			}
-			continue
-		} else {
-			entry.holdUntil = holdUntil
-			entries[dst] = entry
-		}
+		topologyTable[msg.src] = entries
 	}
 
 	return topologyTable
@@ -538,18 +514,6 @@ func (n *Node) handleTC(msg *TCMessage) {
 	// Ignore TC messages sent by this node.
 	if msg.src == n.id {
 		return
-	}
-
-	// Ignore TC messages we've already seen.
-	seq, ok := n.topologySequences[msg.src]
-	if !ok {
-		n.topologySequences[msg.src] = msg.seq
-	} else {
-		if msg.seq <= seq {
-			return
-		} else {
-			n.topologySequences[msg.src] = msg.seq
-		}
 	}
 
 	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTick+n.topologyHoldTime, n.id)
@@ -620,13 +584,11 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.routesChanged = true
 
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
-	n.topologySequences = make(map[NodeID]int)
 	n.topologyHoldTime = 30
 
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
-	n.prevMSSet = make([]NodeID, 0)
 	n.neighborHoldTime = 15
 	return &n
 }
