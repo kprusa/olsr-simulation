@@ -4,7 +4,6 @@ import "testing"
 
 func TestTCMessage_String(t *testing.T) {
 	type fields struct {
-		type_  MsgType
 		src    NodeID
 		frombr NodeID
 		seq    int
@@ -43,7 +42,6 @@ func TestTCMessage_String(t *testing.T) {
 
 func TestDataMessage_String(t *testing.T) {
 	type fields struct {
-		type_   MsgType
 		src     NodeID
 		dst     NodeID
 		nxtHop  NodeID
@@ -58,7 +56,6 @@ func TestDataMessage_String(t *testing.T) {
 		{
 			name: "check format",
 			fields: fields{
-				type_:   DataType,
 				src:     1,
 				dst:     4,
 				nxtHop:  3,
@@ -86,7 +83,6 @@ func TestDataMessage_String(t *testing.T) {
 
 func TestHelloMessage_String(t *testing.T) {
 	type fields struct {
-		type_  MsgType
 		src    NodeID
 		unidir []NodeID
 		bidir  []NodeID
@@ -100,7 +96,6 @@ func TestHelloMessage_String(t *testing.T) {
 		{
 			name: "check format",
 			fields: fields{
-				type_:  HelloType,
 				src:    4,
 				unidir: []NodeID{1, 2, 3},
 				bidir:  []NodeID{5, 6},

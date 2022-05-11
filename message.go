@@ -14,20 +14,19 @@ func separatedString(items []NodeID, sep string) string {
 	return strings.Join(strs, sep)
 }
 
-type MsgType string
-
-const (
-	HelloType MsgType = "HELLO"
-	DataType  MsgType = "DATA"
-	TCType    MsgType = "TC"
-)
-
 // HelloMessage represents a HELLO OLSR message.
 type HelloMessage struct {
 	src    NodeID
 	unidir []NodeID
 	bidir  []NodeID
 	mpr    []NodeID
+
+	// seq numbers are added to ensure messages hello messages are delivered in order.
+	// The sequence number is needed for the simulation, as hello messages may be delivered out-of-order due to
+	// scheduling.
+	// In a real life scenario, a hello message transmitted by a node could never arrive at a neighbor before a
+	// previously transmitted hello message.
+	seq int
 }
 
 func (m HelloMessage) String() string {

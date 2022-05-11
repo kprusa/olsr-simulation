@@ -73,6 +73,18 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 	}
 }
 
+func (c *Controller) handleData(dm *DataMessage, epoch time.Time) {
+	// Send the hello message along all neighbor links that are UP.
+	q := QueryMsg{
+		fromNode:    dm.fromnbr,
+		toNode:      dm.nxtHop,
+		timeQuantum: int(time.Since(epoch) / c.tickDuration),
+	}
+	if c.topology.Query(q) {
+		c.nodeChannels[dm.nxtHop] <- dm
+	}
+}
+
 // Start runs all nodes and starts the controller.
 func (c *Controller) Start() {
 	// Define a context to enable sending a done message to all nodes.
@@ -100,8 +112,7 @@ func (c *Controller) Start() {
 				case *HelloMessage:
 					go c.handleHello(msg.(*HelloMessage), epoch)
 				case *DataMessage:
-					// TODO: Implement data messages. Need internal node routing first.
-					_ = msg.(*DataMessage)
+					go c.handleData(msg.(*DataMessage), epoch)
 				case *TCMessage:
 					go c.handleTC(msg.(*TCMessage), epoch)
 				default:
@@ -113,7 +124,7 @@ func (c *Controller) Start() {
 
 	// Launch a go routine to send a done message to all nodes after the timer expires.
 	go func() {
-		<-time.NewTimer(time.Second * 120).C
+		<-time.NewTimer(c.tickDuration * 240).C
 		cancel()
 		// Flush the input link, ensuring all nodes will receive the done message.
 		for len(c.inputLink) > 0 {
