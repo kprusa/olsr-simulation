@@ -2,7 +2,7 @@ echo "Checking for Go"
 FILE="./go/"
 if ! test -e "$FILE"; then
   echo "Downloading Go..."
-  curl https://dl.google.com/go/go1.18.2.darwin-arm64.tar.gz --output go1.18.2.linux-amd64.tar.gz
+  curl https://dl.google.com/go/go1.18.2.linux-amd64.tar.gz --output go1.18.2.linux-amd64.tar.gz
   echo "Done downloading Go."
 
   echo "Extracting Go..."
