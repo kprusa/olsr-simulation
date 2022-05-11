@@ -19,16 +19,16 @@ func main() {
 		{
 			id: 0,
 			msg: NodeMsg{
-				msg:   "(0 -> 6)",
+				msg:   "(0 -> 2)",
 				delay: 30,
-				dst:   6,
+				dst:   2,
 			},
 		},
 		{
 			id: 1,
 			msg: NodeMsg{
 				msg:   "(1 -> 4)",
-				delay: 30,
+				delay: 40,
 				dst:   4,
 			},
 		},
@@ -36,16 +36,16 @@ func main() {
 			id: 2,
 			msg: NodeMsg{
 				msg:   "(2 -> 3)",
-				delay: 30,
+				delay: 40,
 				dst:   3,
 			},
 		},
 		{
 			id: 3,
 			msg: NodeMsg{
-				msg:   "(3 -> 2)",
-				delay: 30,
-				dst:   2,
+				msg:   "(3 -> 6)",
+				delay: 40,
+				dst:   6,
 			},
 		},
 		{

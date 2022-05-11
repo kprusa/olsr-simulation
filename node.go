@@ -82,7 +82,7 @@ type Node struct {
 	routesChanged bool
 
 	// topologyTable represents the Node's current perception of the network topology.
-	// First NodeID is the next-hop neighbor, while the second ID is the destination.
+	// First NodeID destination's MPR, while the second ID is the destination.
 	topologyTable map[NodeID]map[NodeID]TopologyEntry
 
 	// topologyHoldTime is how long, in ticks, topology table entries will be held until they are expelled.
@@ -289,29 +289,57 @@ func (n *Node) handler(msg interface{}) {
 
 // calculateRoutingTable calculates all reachable destinations based on the topologyTable.
 func (n *Node) calculateRoutingTable() {
-	// FIXME: Perform proper routing based on the specification.
 	// Wipe the table clean, ensuring no stale routes.
 	n.routingTable = make(map[NodeID]RoutingEntry)
 
-	for _, neighborDsts := range n.topologyTable {
-		for _, entry := range neighborDsts {
-			_, ok := n.routingTable[entry.dst]
+	// Add all symmetric one-hop neighbors.
+	for _, neighbor := range n.oneHopNeighbors {
+		if neighbor.state == Bidirectional || neighbor.state == MPR {
+			n.routingTable[neighbor.neighborID] = RoutingEntry{
+				dst:      neighbor.neighborID,
+				nextHop:  neighbor.neighborID,
+				distance: 1,
+			}
+		}
+	}
+
+	// Add all two-hop neighbors.
+	for neighbor, reachableTwoHops := range n.twoHopNeighbors {
+		for dst := range reachableTwoHops {
+			_, ok := n.routingTable[dst]
 			if !ok {
-				// First time seeing this destination.
-				n.routingTable[entry.dst] = RoutingEntry{
-					dst:     entry.dst,
-					nextHop: 0,
-					// TODO: Determine what to put for distance.
-					distance: 0,
+				n.routingTable[dst] = RoutingEntry{
+					dst:      dst,
+					nextHop:  neighbor,
+					distance: 2,
 				}
 			}
 		}
 	}
-	for _, neighbor := range n.oneHopNeighbors {
-		n.routingTable[neighbor.neighborID] = RoutingEntry{
-			dst:      neighbor.neighborID,
-			nextHop:  neighbor.neighborID,
-			distance: 0,
+
+	// Add all remaining routes from topology table.
+	for h := 2; h < 256; h++ {
+		newEntry := false
+		for _, neighborDsts := range n.topologyTable {
+			for _, entry := range neighborDsts {
+				// Check if there already exists a routing entry for the destination.
+				_, ok := n.routingTable[entry.dst]
+				if !ok {
+					// No destination. Check if there's a routing entry that can reach the MPR of the destination.
+					rEntry, ok := n.routingTable[entry.originator]
+					if ok && rEntry.distance == h {
+						newEntry = true
+						n.routingTable[entry.dst] = RoutingEntry{
+							dst:      entry.dst,
+							nextHop:  rEntry.nextHop,
+							distance: h + 1,
+						}
+					}
+				}
+			}
+		}
+		if !newEntry {
+			break
 		}
 	}
 }
@@ -354,7 +382,7 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 func updateTwoHopNeighbors(msg *HelloMessage, twoHopNeighbors map[NodeID]map[NodeID]NodeID, id NodeID) map[NodeID]map[NodeID]NodeID {
 	// Delete all previous entries for the source by creating a new map.
 	twoHops := make(map[NodeID]NodeID)
-	for _, nodeID := range append(msg.unidir, msg.bidir...) {
+	for _, nodeID := range append(msg.bidir, msg.mpr...) {
 		// Check for own id.
 		if nodeID == id {
 			continue
@@ -584,11 +612,11 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 	n.routesChanged = true
 
 	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
-	n.topologyHoldTime = 30
+	n.topologyHoldTime = 60
 
 	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
-	n.neighborHoldTime = 15
+	n.neighborHoldTime = 20
 	return &n
 }

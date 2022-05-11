@@ -138,7 +138,6 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 		args args
 		want map[NodeID]map[NodeID]NodeID
 	}{
-		// TODO: Add test cases.
 		{
 			name: "new two hop",
 			args: args{
@@ -157,6 +156,26 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "include mprs",
+			args: args{
+				msg: &HelloMessage{
+					src:    1,
+					unidir: nil,
+					bidir:  []NodeID{2},
+					mpr:    []NodeID{3},
+				},
+				twoHopNeighbors: map[NodeID]map[NodeID]NodeID{},
+				id:              0,
+			},
+			want: map[NodeID]map[NodeID]NodeID{
+				NodeID(1): {
+					NodeID(2): NodeID(2),
+					NodeID(3): NodeID(3),
+				},
+			},
+		},
+
 		{
 			name: "delete previous entries",
 			args: args{
