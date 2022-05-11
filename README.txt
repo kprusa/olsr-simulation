@@ -2,7 +2,7 @@
 
 INTRODUCTION
 
-    This project uses Go to simulate a OSLR ad-hoc network. For the simulation, each node
+    This project uses Go to simulate an OSLR ad-hoc network. For the simulation, each node
     is run as a go routine, with an input and output channel. A controller is used to
     facilitate message interchange based on a supplied network topology.
 
