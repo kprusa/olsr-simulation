@@ -143,6 +143,15 @@ func (c *Controller) Start(ticks int) {
 	wg.Wait()
 }
 
+// NewController creates a Controller based on the supplied network typology.
+func NewController(topology NetworkTypology, tickDuration time.Duration) *Controller {
+	c := &Controller{}
+	c.topology = topology
+	c.nodeChannels = make(map[NodeID]chan interface{})
+	c.tickDuration = tickDuration
+	return c
+}
+
 // NodeConfig is used for the creation of nodes by a Controller during initialization.
 type NodeConfig struct {
 	id  NodeID
@@ -194,13 +203,4 @@ func ReadNodeConfiguration(in io.ReadCloser) ([]NodeConfig, error) {
 		configs = append(configs, c)
 	}
 	return configs, nil
-}
-
-// NewController creates a Controller based on the supplied network typology.
-func NewController(topology NetworkTypology, tickDuration time.Duration) *Controller {
-	c := &Controller{}
-	c.topology = topology
-	c.nodeChannels = make(map[NodeID]chan interface{})
-	c.tickDuration = tickDuration
-	return c
 }
