@@ -1,5 +1,17 @@
 ======================
 
+INTRODUCTION
+
+    This project uses Go to simulate a OSLR ad-hoc network. For the simulation, each node is run as a go routine, with
+    an input and output channel. A controller is used to facilitate message interchange based on a supplied network
+    topology.
+
+    There is a single executable, with no need to spawn additional processes.
+
+    All communication is facilitated through Go channels and each node logs all communication to files.
+
+======================
+
 SETUP
 
     Simply execute setup.sh. The script will install Go and build the executable. Once the script successfully runs,
@@ -10,6 +22,22 @@ SETUP
 EXECUTION
 
     Executing "network-simulation" with no arguments will show a usage message.
+
+    During execution, all messages sent and received by nodes will be logged to stdout.
+
+    Post execution, a new directory "log" will appear. This directory will include three log files for each node:
+
+        {NODE_ID}_in.txt:
+
+            A log file containing all messages that the given node received during the execution.
+
+        {NODE_ID}_out.txt:
+
+            A log file containing all messages that the given node sent during the execution.
+
+        {NODE_ID}_received.txt:
+
+            A log file containing all data that the given node received during the execution.
 
     ----------------------
 
@@ -69,7 +97,6 @@ EXECUTION
             Number of ticks the simulation will run for. (default 120)
 
     ----------------------
-
 
 ======================
 
