@@ -206,12 +206,12 @@ func Test_calculateMPRs(t *testing.T) {
 				twoHopNeighbors map[NodeID]map[NodeID]NodeID
 			}{
 				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
-					NodeID(1): OneHopNeighborEntry{
+					NodeID(1): {
 						neighborID: 1,
 						state:      Bidirectional,
 						holdUntil:  20,
 					},
-					NodeID(2): OneHopNeighborEntry{
+					NodeID(2): {
 						neighborID: 1,
 						state:      Bidirectional,
 						holdUntil:  20,
@@ -233,7 +233,7 @@ func Test_calculateMPRs(t *testing.T) {
 					state:      MPR,
 					holdUntil:  20,
 				},
-				NodeID(2): OneHopNeighborEntry{
+				NodeID(2): {
 					neighborID: 1,
 					state:      Bidirectional,
 					holdUntil:  20,
@@ -247,12 +247,12 @@ func Test_calculateMPRs(t *testing.T) {
 				twoHopNeighbors map[NodeID]map[NodeID]NodeID
 			}{
 				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
-					NodeID(1): OneHopNeighborEntry{
+					NodeID(1): {
 						neighborID: 1,
 						state:      Bidirectional,
 						holdUntil:  20,
 					},
-					NodeID(2): OneHopNeighborEntry{
+					NodeID(2): {
 						neighborID: 1,
 						state:      Bidirectional,
 						holdUntil:  20,
@@ -273,7 +273,7 @@ func Test_calculateMPRs(t *testing.T) {
 					state:      MPR,
 					holdUntil:  20,
 				},
-				NodeID(2): OneHopNeighborEntry{
+				NodeID(2): {
 					neighborID: 1,
 					state:      MPR,
 					holdUntil:  20,
