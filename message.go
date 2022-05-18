@@ -21,7 +21,7 @@ type HelloMessage struct {
 	bidir  []NodeID
 	mpr    []NodeID
 
-	// seq numbers are added to ensure messages hello messages are delivered in order.
+	// seq numbers are added to ensure hello messages are delivered in order.
 	// The sequence number is needed for the simulation, as hello messages may be delivered out-of-order due to
 	// scheduling.
 	// In a real life scenario, a hello message transmitted by a node could never arrive at a neighbor before a
