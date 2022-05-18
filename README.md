@@ -10,7 +10,7 @@ All communication is facilitated through Go channels and each node logs all
 communication to files.
 
 ---
-## EXECUTION
+## Execution
 
 Executing "network-simulation" with no arguments will show a usage message.
 
@@ -34,7 +34,7 @@ log files for each node:
         A log file containing all data that the given node received during the
         execution.
 
-### REQUIRED ARGUMENTS
+### Required Arguments
 
     -nf string
 
@@ -78,7 +78,7 @@ log files for each node:
             21 UP 0 2
             25 UP 2 0
 
-### OPTIONAL ARGUMENTS
+### Optional Arguments
 
     -t int
 
@@ -90,10 +90,10 @@ log files for each node:
         Number of ticks the simulation will run for. (default 120)
 
 ---
-## EXAMPLE EXECUTION
+## Example Execution
 
 
-### BASIC EXAMPLE
+### Basic Example
 
 The following command uses the included testdata to run a demonstration
 simulation.
@@ -103,7 +103,7 @@ simulation.
 ```
 
 
-### INCREASING SIMULATION SPEED
+### Increasing Simulation Speed
 
 The following command sets the tick rate to 100ms, increasing the simulation speed.
 
