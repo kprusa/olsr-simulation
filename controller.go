@@ -52,9 +52,9 @@ func (c *Controller) handleHello(hm *HelloMessage, epoch time.Time) {
 			continue
 		}
 		q := QueryMsg{
-			fromNode:    hm.src,
-			toNode:      node.id,
-			timeQuantum: int(time.Since(epoch) / c.tickDuration),
+			fromNode: hm.src,
+			toNode:   node.id,
+			atTime:   int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			// Send the hello if a link is available.
@@ -70,9 +70,9 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 			continue
 		}
 		q := QueryMsg{
-			fromNode:    tcm.fromnbr,
-			toNode:      node.id,
-			timeQuantum: int(time.Since(epoch) / c.tickDuration),
+			fromNode: tcm.fromnbr,
+			toNode:   node.id,
+			atTime:   int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			c.nodeChannels[node.id] <- tcm
@@ -83,9 +83,9 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 func (c *Controller) handleData(dm *DataMessage, epoch time.Time) {
 	// Send the data message to the specified next-hop, if the link is UP.
 	q := QueryMsg{
-		fromNode:    dm.fromnbr,
-		toNode:      dm.nxtHop,
-		timeQuantum: int(time.Since(epoch) / c.tickDuration),
+		fromNode: dm.fromnbr,
+		toNode:   dm.nxtHop,
+		atTime:   int(time.Since(epoch) / c.tickDuration),
 	}
 	if c.topology.Query(q) {
 		c.nodeChannels[dm.nxtHop] <- dm
@@ -110,7 +110,7 @@ func (c *Controller) Start(ticks int) {
 		}(node)
 	}
 
-	// Launch a go routine to handle routing of messages between nodes using the network topology.
+	// Launch a goroutine to handle routing of messages between nodes using the network topology.
 	go func() {
 		for {
 			select {
@@ -129,7 +129,7 @@ func (c *Controller) Start(ticks int) {
 		}
 	}()
 
-	// Launch a go routine to send a done message to all nodes after the timer expires.
+	// Launch a goroutine to send a done message to all nodes after the timer expires.
 	go func() {
 		<-time.NewTimer(c.tickDuration * time.Duration(ticks)).C
 		cancel()

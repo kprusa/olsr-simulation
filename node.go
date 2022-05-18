@@ -195,8 +195,8 @@ func (n *Node) run(ctx context.Context) {
 }
 
 func (n *Node) sendData(msg *DataMessage) bool {
-	route, ok := n.routingTable[msg.dst]
-	if ok {
+	route, in := n.routingTable[msg.dst]
+	if in {
 		msg.fromnbr = n.id
 		msg.nxtHop = route.nextHop
 
@@ -306,8 +306,8 @@ func (n *Node) calculateRoutingTable() {
 	// Add all two-hop neighbors.
 	for neighbor, reachableTwoHops := range n.twoHopNeighbors {
 		for dst := range reachableTwoHops {
-			_, ok := n.routingTable[dst]
-			if !ok {
+			_, in := n.routingTable[dst]
+			if !in {
 				n.routingTable[dst] = RoutingEntry{
 					dst:      dst,
 					nextHop:  neighbor,
@@ -323,11 +323,11 @@ func (n *Node) calculateRoutingTable() {
 		for _, neighborDsts := range n.topologyTable {
 			for _, entry := range neighborDsts {
 				// Check if there already exists a routing entry for the destination.
-				_, ok := n.routingTable[entry.dst]
-				if !ok {
+				_, in := n.routingTable[entry.dst]
+				if !in {
 					// No destination. Check if there's a routing entry that can reach the MPR of the destination.
-					rEntry, ok := n.routingTable[entry.originator]
-					if ok && rEntry.distance == h {
+					rEntry, in := n.routingTable[entry.originator]
+					if in && rEntry.distance == h {
 						newEntry = true
 						n.routingTable[entry.dst] = RoutingEntry{
 							dst:      entry.dst,
@@ -346,8 +346,8 @@ func (n *Node) calculateRoutingTable() {
 
 // updateOneHopNeighbors adds all new one-hop neighbors that can be reached.
 func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopNeighborEntry, holdUntil int, id NodeID) map[NodeID]OneHopNeighborEntry {
-	entry, ok := oneHopNeighbors[msg.src]
-	if !ok {
+	entry, in := oneHopNeighbors[msg.src]
+	if !in {
 		// First time neighbor
 		oneHopNeighbors[msg.src] = OneHopNeighborEntry{
 			neighborID: msg.src,
@@ -438,8 +438,8 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 
 	// Update states of one-hop neighbors based on newly selected MPRs.
 	for id, neigh := range oneHopNeighbors {
-		_, ok := mprs[id]
-		if ok {
+		_, in := mprs[id]
+		if in {
 			neigh.state = MPR
 			oneHopNeighbors[id] = neigh
 		} else {
@@ -455,8 +455,8 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 // handleHello handles the processing of a HelloMessage.
 func (n *Node) handleHello(msg *HelloMessage) {
 	// Ignore hello messages sent out-of-order
-	seq, ok := n.helloSequences[msg.src]
-	if !ok {
+	seq, in := n.helloSequences[msg.src]
+	if !in {
 		n.helloSequences[msg.src] = msg.seq
 	} else {
 		if msg.seq <= seq {
@@ -475,7 +475,7 @@ func (n *Node) handleHello(msg *HelloMessage) {
 	n.oneHopNeighbors = calculateMPRs(n.oneHopNeighbors, n.twoHopNeighbors)
 
 	// Update the msSet
-	_, ok = n.msSet[msg.src]
+	_, in = n.msSet[msg.src]
 	isMS := false
 	// Check if this node is in the MPR set from the HELLO message.
 	for _, nodeID := range msg.mpr {
@@ -485,11 +485,11 @@ func (n *Node) handleHello(msg *HelloMessage) {
 		}
 	}
 	// Previously an MS, but no longer are.
-	if ok && !isMS {
+	if in && !isMS {
 		delete(n.msSet, msg.src)
 	}
 	// New MS.
-	if !ok && isMS {
+	if !in && isMS {
 		n.msSet[msg.src] = msg.src
 	}
 
@@ -508,12 +508,12 @@ func (n *Node) handleData(msg *DataMessage) {
 }
 
 func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int, id NodeID) map[NodeID]map[NodeID]TopologyEntry {
-	entries, ok := topologyTable[msg.src]
-	if ok {
+	entries, in := topologyTable[msg.src]
+	if in {
 		// Check if sequence number is new.
 		for _, dst := range msg.ms {
-			entry, ok := entries[dst]
-			if ok && entry.seq > msg.seq {
+			entry, in := entries[dst]
+			if in && entry.seq > msg.seq {
 				return topologyTable
 			}
 		}

@@ -18,8 +18,8 @@ type QueryMsg struct {
 	// toNode is the destination of the link.
 	toNode NodeID
 
-	// timeQuantum is the moment in time to check the status of the link.
-	timeQuantum int
+	// atTime is the moment in time to check the status of the link.
+	atTime int
 }
 
 // NetworkTypology represents the ad-hoc network typology and is used by the Controller.
@@ -69,8 +69,8 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 		currTime = ls.time
 
 		// Add the new LinkState to the applicable link. If there is not a link, create one.
-		dsts, ok := n.links[ls.fromNode]
-		if !ok {
+		dsts, in := n.links[ls.fromNode]
+		if !in {
 			link := Link{fromNode: ls.fromNode, toNode: ls.toNode}
 			link.states = append(link.states, *ls)
 
@@ -79,8 +79,8 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 			n.links[ls.fromNode] = srcMap
 			continue
 		}
-		dst, ok := dsts[ls.toNode]
-		if !ok {
+		dst, in := dsts[ls.toNode]
+		if !in {
 			link := Link{fromNode: ls.fromNode, toNode: ls.toNode}
 			link.states = append(link.states, *ls)
 
@@ -107,5 +107,5 @@ func (n *NetworkTypology) Query(msg QueryMsg) bool {
 		return false
 	}
 
-	return link.isUp(msg.timeQuantum)
+	return link.isUp(msg.atTime)
 }
