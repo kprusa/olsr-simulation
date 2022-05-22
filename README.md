@@ -1,6 +1,6 @@
 ## Summary
 
-This project uses Go to simulate a simplified version of an OSLR ad-hoc network as defined by [RFC 3626](https://datatracker.ietf.org/doc/html/rfc3626). For the simulation, each node
+This project uses Go to simulate a simplified version of an OLSR ad-hoc network as defined by [RFC 3626](https://datatracker.ietf.org/doc/html/rfc3626). For the simulation, each node
 is run as a goroutine, with an input and output channel. A controller is used to
 facilitate message interchange based on a supplied network topology.
 

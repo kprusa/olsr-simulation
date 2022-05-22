@@ -1,3 +1,3 @@
-module oslr-simulation
+module olsr-simulation
 
 go 1.18
