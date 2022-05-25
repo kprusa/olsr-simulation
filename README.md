@@ -41,8 +41,6 @@ log files for each node:
         Node configuration file path.
 
         A path to a text file which includes newline separated node configurations.
-        These configurations are the same as those described in the project
-        specification.
 
         The configurations have the following format:
 
@@ -62,8 +60,7 @@ log files for each node:
 
         Topology file path.
 
-        A path to a text file which includes newline separated topology values. These
-        values are the same as those described in the project specification.
+        A path to a text file which includes newline separated topology values.
 
         The values have the following format:
 

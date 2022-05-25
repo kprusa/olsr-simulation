@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -14,7 +15,6 @@ type TopologyEntry struct {
 	// dst is the MPR selector in the received TCMessage.
 	dst NodeID
 
-	// FIXME: This needs to be changed to the originator address of the TC message.
 	// originator is the originator of the TCMessage (last-hop node to the destination).
 	originator NodeID
 
@@ -36,14 +36,22 @@ type RoutingEntry struct {
 	distance int
 }
 
+// NeighborState represents a Node's perception of the state of a link with a neighbor, based on HelloMessage(s).
 type NeighborState int
 
 const (
+	// Bidirectional is a link which the Node has received a HelloMessage via, where the HelloMessage includes
+	// the receiving Node's ID in the Unidirectional list.
 	Bidirectional NeighborState = iota
+
+	// Unidirectional is a link which a Node has received a HelloMessage via.
 	Unidirectional
+
+	// MPR is a link which a Node has selected as a multipoint relay.
 	MPR
 )
 
+// OneHopNeighborEntry are neighbors that can be reached along a direct link.
 type OneHopNeighborEntry struct {
 	neighborID NodeID
 	state      NeighborState
@@ -52,6 +60,10 @@ type OneHopNeighborEntry struct {
 
 // NodeID is a unique identifier used to differentiate nodes.
 type NodeID uint
+
+func (n NodeID) String() string {
+	return strconv.Itoa(int(n))
+}
 
 // Node represents a network node in the ad-hoc network.
 type Node struct {
@@ -98,7 +110,7 @@ type Node struct {
 	// The second map is used for uniqueness and merely maps NodeID(s) to themselves.
 	twoHopNeighbors map[NodeID]map[NodeID]NodeID
 
-	// msSet
+	// msSet is the set of nodes that have selected this Node as an MPR.
 	msSet map[NodeID]NodeID
 
 	// currentTick is the number of ticks since the node came online.
@@ -194,6 +206,7 @@ func (n *Node) run(ctx context.Context) {
 	}
 }
 
+// sendData sends the Node's NodeMsg as a DataMessage if there is a route to the destination.
 func (n *Node) sendData(msg *DataMessage) bool {
 	route, in := n.routingTable[msg.dst]
 	if in {

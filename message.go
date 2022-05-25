@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
-func separatedString(items []NodeID, sep string) string {
+// separatedString creates a string from the items separated by the separator.
+func separatedString[T fmt.Stringer](items []T, separator string) string {
 	var strs []string
 	for _, item := range items {
-		strs = append(strs, strconv.Itoa(int(item)))
+		strs = append(strs, item.String())
 	}
-	return strings.Join(strs, sep)
+	return strings.Join(strs, separator)
 }
 
 // HelloMessage represents a HELLO OLSR message.
@@ -23,7 +23,7 @@ type HelloMessage struct {
 
 	// seq numbers are added to ensure hello messages are delivered in order.
 	// The sequence number is needed for the simulation, as hello messages may be delivered out-of-order due to
-	// scheduling.
+	// scheduling of goroutines.
 	// In a real life scenario, a hello message transmitted by a node could never arrive at a neighbor before a
 	// previously transmitted hello message.
 	seq int
