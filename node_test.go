@@ -8,7 +8,7 @@ import (
 func Test_updateOneHopNeighbors(t *testing.T) {
 	type args struct {
 		msg             *HelloMessage
-		oneHopNeighbors map[NodeID]OneHopNeighborEntry
+		oneHopNeighbors map[NodeID]oneHopNeighborEntry
 		time            int
 		holdTime        int
 		id              NodeID
@@ -16,21 +16,21 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want map[NodeID]OneHopNeighborEntry
+		want map[NodeID]oneHopNeighborEntry
 	}{
 		{
 			name: "new unidirectional neighbor",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  []NodeID{2, 3},
-					mpr:    nil,
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   []NodeID{2, 3},
+					MultipointRelay: nil,
 				},
-				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+				oneHopNeighbors: map[NodeID]oneHopNeighborEntry{
 					NodeID(2): {
 						neighborID: 1,
-						state:      Unidirectional,
+						state:      unidirectional,
 						holdUntil:  15,
 					},
 				},
@@ -38,15 +38,15 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 				holdTime: 10,
 				id:       0,
 			},
-			want: map[NodeID]OneHopNeighborEntry{
+			want: map[NodeID]oneHopNeighborEntry{
 				NodeID(2): {
 					neighborID: 1,
-					state:      Unidirectional,
+					state:      unidirectional,
 					holdUntil:  15,
 				},
 				NodeID(1): {
 					neighborID: 1,
-					state:      Unidirectional,
+					state:      unidirectional,
 					holdUntil:  20,
 				},
 			},
@@ -55,20 +55,20 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 			name: "new bidirectional neighbor",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  []NodeID{0, 2, 3},
-					mpr:    nil,
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   []NodeID{0, 2, 3},
+					MultipointRelay: nil,
 				},
-				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+				oneHopNeighbors: map[NodeID]oneHopNeighborEntry{
 					NodeID(1): {
 						neighborID: 1,
-						state:      Unidirectional,
+						state:      unidirectional,
 						holdUntil:  15,
 					},
 					NodeID(2): {
 						neighborID: 1,
-						state:      Unidirectional,
+						state:      unidirectional,
 						holdUntil:  15,
 					},
 				},
@@ -76,32 +76,32 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 				holdTime: 10,
 				id:       0,
 			},
-			want: map[NodeID]OneHopNeighborEntry{
+			want: map[NodeID]oneHopNeighborEntry{
 				NodeID(1): {
 					neighborID: 1,
-					state:      Bidirectional,
+					state:      bidirectional,
 					holdUntil:  20,
 				},
 				NodeID(2): {
 					neighborID: 1,
-					state:      Unidirectional,
+					state:      unidirectional,
 					holdUntil:  15,
 				},
 			},
 		},
 		{
-			name: "new bidirectional neighbor from mpr",
+			name: "new bidirectional neighbor from MultipointRelay",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  nil,
-					mpr:    []NodeID{0},
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   nil,
+					MultipointRelay: []NodeID{0},
 				},
-				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+				oneHopNeighbors: map[NodeID]oneHopNeighborEntry{
 					NodeID(1): {
 						neighborID: 1,
-						state:      Unidirectional,
+						state:      unidirectional,
 						holdUntil:  15,
 					},
 				},
@@ -109,10 +109,10 @@ func Test_updateOneHopNeighbors(t *testing.T) {
 				holdTime: 10,
 				id:       0,
 			},
-			want: map[NodeID]OneHopNeighborEntry{
+			want: map[NodeID]oneHopNeighborEntry{
 				NodeID(1): {
 					neighborID: 1,
-					state:      Bidirectional,
+					state:      bidirectional,
 					holdUntil:  20,
 				},
 			},
@@ -142,10 +142,10 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 			name: "new two hop",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  []NodeID{2},
-					mpr:    nil,
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   []NodeID{2},
+					MultipointRelay: nil,
 				},
 				twoHopNeighbors: map[NodeID]map[NodeID]NodeID{},
 				id:              0,
@@ -160,10 +160,10 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 			name: "include mprs",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  []NodeID{2},
-					mpr:    []NodeID{3},
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   []NodeID{2},
+					MultipointRelay: []NodeID{3},
 				},
 				twoHopNeighbors: map[NodeID]map[NodeID]NodeID{},
 				id:              0,
@@ -180,10 +180,10 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 			name: "delete previous entries",
 			args: args{
 				msg: &HelloMessage{
-					src:    1,
-					unidir: nil,
-					bidir:  []NodeID{3},
-					mpr:    nil,
+					Source:          1,
+					Unidirectional:  nil,
+					Bidirectional:   []NodeID{3},
+					MultipointRelay: nil,
 				},
 				twoHopNeighbors: map[NodeID]map[NodeID]NodeID{
 					NodeID(1): {
@@ -210,29 +210,29 @@ func Test_updateTwoHopNeighbors(t *testing.T) {
 
 func Test_calculateMPRs(t *testing.T) {
 	type args struct {
-		oneHopNeighbors map[NodeID]OneHopNeighborEntry
+		oneHopNeighbors map[NodeID]oneHopNeighborEntry
 		twoHopNeighbors map[NodeID]map[NodeID]NodeID
 	}
 	tests := []struct {
 		name string
 		args args
-		want map[NodeID]OneHopNeighborEntry
+		want map[NodeID]oneHopNeighborEntry
 	}{
 		{
 			name: "ensure greedy",
 			args: struct {
-				oneHopNeighbors map[NodeID]OneHopNeighborEntry
+				oneHopNeighbors map[NodeID]oneHopNeighborEntry
 				twoHopNeighbors map[NodeID]map[NodeID]NodeID
 			}{
-				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+				oneHopNeighbors: map[NodeID]oneHopNeighborEntry{
 					NodeID(1): {
 						neighborID: 1,
-						state:      Bidirectional,
+						state:      bidirectional,
 						holdUntil:  20,
 					},
 					NodeID(2): {
 						neighborID: 1,
-						state:      Bidirectional,
+						state:      bidirectional,
 						holdUntil:  20,
 					},
 				},
@@ -246,15 +246,15 @@ func Test_calculateMPRs(t *testing.T) {
 					},
 				},
 			},
-			want: map[NodeID]OneHopNeighborEntry{
+			want: map[NodeID]oneHopNeighborEntry{
 				NodeID(1): {
 					neighborID: 1,
-					state:      MPR,
+					state:      mpr,
 					holdUntil:  20,
 				},
 				NodeID(2): {
 					neighborID: 1,
-					state:      Bidirectional,
+					state:      bidirectional,
 					holdUntil:  20,
 				},
 			},
@@ -262,18 +262,18 @@ func Test_calculateMPRs(t *testing.T) {
 		{
 			name: "ensure coverage",
 			args: struct {
-				oneHopNeighbors map[NodeID]OneHopNeighborEntry
+				oneHopNeighbors map[NodeID]oneHopNeighborEntry
 				twoHopNeighbors map[NodeID]map[NodeID]NodeID
 			}{
-				oneHopNeighbors: map[NodeID]OneHopNeighborEntry{
+				oneHopNeighbors: map[NodeID]oneHopNeighborEntry{
 					NodeID(1): {
 						neighborID: 1,
-						state:      Bidirectional,
+						state:      bidirectional,
 						holdUntil:  20,
 					},
 					NodeID(2): {
 						neighborID: 1,
-						state:      Bidirectional,
+						state:      bidirectional,
 						holdUntil:  20,
 					},
 				},
@@ -286,15 +286,15 @@ func Test_calculateMPRs(t *testing.T) {
 					},
 				},
 			},
-			want: map[NodeID]OneHopNeighborEntry{
+			want: map[NodeID]oneHopNeighborEntry{
 				NodeID(1): {
 					neighborID: 1,
-					state:      MPR,
+					state:      mpr,
 					holdUntil:  20,
 				},
 				NodeID(2): {
 					neighborID: 1,
-					state:      MPR,
+					state:      mpr,
 					holdUntil:  20,
 				},
 			},
@@ -312,39 +312,39 @@ func Test_calculateMPRs(t *testing.T) {
 func Test_updateTopologyTable1(t *testing.T) {
 	type args struct {
 		msg           *TCMessage
-		topologyTable map[NodeID]map[NodeID]TopologyEntry
+		topologyTable map[NodeID]map[NodeID]topologyEntry
 		holdTime      int
 		id            NodeID
 	}
 	tests := []struct {
 		name string
 		args args
-		want map[NodeID]map[NodeID]TopologyEntry
+		want map[NodeID]map[NodeID]topologyEntry
 	}{
 		{
 			name: "new nodes",
 			args: args{
 				msg: &TCMessage{
-					src:     2,
-					fromnbr: 1,
-					seq:     0,
-					ms: []NodeID{
+					Source:       2,
+					FromNeighbor: 1,
+					Sequence:     0,
+					MultipointRelaySet: []NodeID{
 						NodeID(1),
 						NodeID(3),
 					},
 				},
-				topologyTable: map[NodeID]map[NodeID]TopologyEntry{},
+				topologyTable: map[NodeID]map[NodeID]topologyEntry{},
 				holdTime:      30,
 			},
-			want: map[NodeID]map[NodeID]TopologyEntry{
+			want: map[NodeID]map[NodeID]topologyEntry{
 				NodeID(2): {
-					NodeID(1): TopologyEntry{
+					NodeID(1): topologyEntry{
 						dst:        1,
 						originator: 2,
 						holdUntil:  30,
 						seq:        0,
 					},
-					NodeID(3): TopologyEntry{
+					NodeID(3): topologyEntry{
 						dst:        3,
 						originator: 2,
 						holdUntil:  30,
@@ -357,16 +357,16 @@ func Test_updateTopologyTable1(t *testing.T) {
 			name: "multiple mprs",
 			args: args{
 				msg: &TCMessage{
-					src:     1,
-					fromnbr: 1,
-					seq:     0,
-					ms: []NodeID{
+					Source:       1,
+					FromNeighbor: 1,
+					Sequence:     0,
+					MultipointRelaySet: []NodeID{
 						NodeID(2),
 					},
 				},
-				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
+				topologyTable: map[NodeID]map[NodeID]topologyEntry{
 					NodeID(3): {
-						NodeID(2): TopologyEntry{
+						NodeID(2): topologyEntry{
 							dst:        2,
 							originator: 3,
 							holdUntil:  30,
@@ -376,9 +376,9 @@ func Test_updateTopologyTable1(t *testing.T) {
 				},
 				holdTime: 30,
 			},
-			want: map[NodeID]map[NodeID]TopologyEntry{
+			want: map[NodeID]map[NodeID]topologyEntry{
 				NodeID(3): {
-					NodeID(2): TopologyEntry{
+					NodeID(2): topologyEntry{
 						dst:        2,
 						originator: 3,
 						holdUntil:  30,
@@ -386,7 +386,7 @@ func Test_updateTopologyTable1(t *testing.T) {
 					},
 				},
 				NodeID(1): {
-					NodeID(2): TopologyEntry{
+					NodeID(2): topologyEntry{
 						dst:        2,
 						originator: 1,
 						holdUntil:  30,
@@ -396,24 +396,24 @@ func Test_updateTopologyTable1(t *testing.T) {
 			},
 		},
 		{
-			name: "ignore dst if same as id",
+			name: "ignore Destination if same as ID",
 			args: args{
 				msg: &TCMessage{
-					src:     1,
-					fromnbr: 1,
-					seq:     0,
-					ms: []NodeID{
+					Source:       1,
+					FromNeighbor: 1,
+					Sequence:     0,
+					MultipointRelaySet: []NodeID{
 						NodeID(2),
 						NodeID(0),
 					},
 				},
-				topologyTable: map[NodeID]map[NodeID]TopologyEntry{},
+				topologyTable: map[NodeID]map[NodeID]topologyEntry{},
 				holdTime:      30,
 				id:            NodeID(0),
 			},
-			want: map[NodeID]map[NodeID]TopologyEntry{
+			want: map[NodeID]map[NodeID]topologyEntry{
 				NodeID(1): {
-					NodeID(2): TopologyEntry{
+					NodeID(2): topologyEntry{
 						dst:        2,
 						originator: 1,
 						holdUntil:  30,
@@ -426,17 +426,17 @@ func Test_updateTopologyTable1(t *testing.T) {
 			name: "update if larger sequence",
 			args: args{
 				msg: &TCMessage{
-					src:     1,
-					fromnbr: 1,
-					seq:     1,
-					ms: []NodeID{
+					Source:       1,
+					FromNeighbor: 1,
+					Sequence:     1,
+					MultipointRelaySet: []NodeID{
 						NodeID(2),
 						NodeID(3),
 					},
 				},
-				topologyTable: map[NodeID]map[NodeID]TopologyEntry{
+				topologyTable: map[NodeID]map[NodeID]topologyEntry{
 					NodeID(1): {
-						NodeID(2): TopologyEntry{
+						NodeID(2): topologyEntry{
 							dst:        2,
 							originator: 1,
 							holdUntil:  23,
@@ -447,15 +447,15 @@ func Test_updateTopologyTable1(t *testing.T) {
 				holdTime: 30,
 				id:       NodeID(0),
 			},
-			want: map[NodeID]map[NodeID]TopologyEntry{
+			want: map[NodeID]map[NodeID]topologyEntry{
 				NodeID(1): {
-					NodeID(2): TopologyEntry{
+					NodeID(2): topologyEntry{
 						dst:        2,
 						originator: 1,
 						holdUntil:  30,
 						seq:        1,
 					},
-					NodeID(3): TopologyEntry{
+					NodeID(3): topologyEntry{
 						dst:        3,
 						originator: 1,
 						holdUntil:  30,

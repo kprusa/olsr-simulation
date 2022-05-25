@@ -22,12 +22,12 @@ func TestReadNodeConfiguration(t *testing.T) {
 			args: args{in: io.NopCloser(strings.NewReader("0 2 \"(0 -> 2)\" 30\n"))},
 			want: []NodeConfig{
 				{
-					id: 0,
-					msg: NodeMsg{
-						msg:   "(0 -> 2)",
-						delay: 30,
-						dst:   2,
-						sent:  false,
+					ID: 0,
+					Message: NodeMessage{
+						Message:     "(0 -> 2)",
+						Delay:       30,
+						Destination: 2,
+						Sent:        false,
 					},
 				},
 			},

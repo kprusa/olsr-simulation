@@ -12,14 +12,14 @@ import (
 // QueryMsg enables the Controller to query the NetworkTopology to determine the state of a link at a given moment
 // in time.
 type QueryMsg struct {
-	// fromNode is the source of the link.
-	fromNode NodeID
+	// FromNode is the source of the link.
+	FromNode NodeID
 
-	// toNode is the destination of the link.
-	toNode NodeID
+	// ToNode is the destination of the link.
+	ToNode NodeID
 
-	// atTime is the moment in time to check the status of the link.
-	atTime int
+	// AtTime is the moment in time to check the status of the link.
+	AtTime int
 }
 
 // NetworkTypology represents the ad-hoc network typology and is used by the Controller.
@@ -35,14 +35,7 @@ func (e ErrParseLinkState) Error() string {
 	return fmt.Sprintf("parse link state: %s", e.msg)
 }
 
-func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
-	defer func(in io.ReadCloser) {
-		err := in.Close()
-		if err != nil {
-			log.Printf("unable to close input file: %s\n", err)
-		}
-	}(in)
-
+func NewNetworkTypology(in io.Reader) (*NetworkTypology, error) {
 	n := &NetworkTypology{}
 	n.links = make(map[NodeID]map[NodeID]Link)
 
@@ -97,15 +90,15 @@ func NewNetworkTypology(in io.ReadCloser) (*NetworkTypology, error) {
 
 // Query enables to Controller to determine the current link-state at a time quantum.
 func (n *NetworkTypology) Query(msg QueryMsg) bool {
-	links, in := n.links[msg.fromNode]
+	links, in := n.links[msg.FromNode]
 	if !in {
 		return false
 	}
 
-	link, in := links[msg.toNode]
+	link, in := links[msg.ToNode]
 	if !in {
 		return false
 	}
 
-	return link.isUp(msg.atTime)
+	return link.isUp(msg.AtTime)
 }

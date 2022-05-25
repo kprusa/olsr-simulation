@@ -28,10 +28,10 @@ func TestTCMessage_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &TCMessage{
-				src:     tt.fields.src,
-				fromnbr: tt.fields.frombr,
-				seq:     tt.fields.seq,
-				ms:      tt.fields.ms,
+				Source:             tt.fields.src,
+				FromNeighbor:       tt.fields.frombr,
+				Sequence:           tt.fields.seq,
+				MultipointRelaySet: tt.fields.ms,
 			}
 			if got := m.String(); got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)
@@ -68,11 +68,11 @@ func TestDataMessage_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &DataMessage{
-				src:     tt.fields.src,
-				dst:     tt.fields.dst,
-				nxtHop:  tt.fields.nxtHop,
-				fromnbr: tt.fields.fromnbr,
-				data:    tt.fields.data,
+				Source:       tt.fields.src,
+				Destination:  tt.fields.dst,
+				NextHop:      tt.fields.nxtHop,
+				FromNeighbor: tt.fields.fromnbr,
+				Data:         tt.fields.data,
 			}
 			if got := m.String(); got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)
@@ -101,16 +101,16 @@ func TestHelloMessage_String(t *testing.T) {
 				bidir:  []NodeID{5, 6},
 				mpr:    []NodeID{7, 8},
 			},
-			want: "* 4 HELLO UNIDIR 1 2 3 BIDIR 5 6 MPR 7 8",
+			want: "* 4 HELLO UNIDIR 1 2 3 BIDIR 5 6 MultipointRelay 7 8",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &HelloMessage{
-				src:    tt.fields.src,
-				unidir: tt.fields.unidir,
-				bidir:  tt.fields.bidir,
-				mpr:    tt.fields.mpr,
+				Source:          tt.fields.src,
+				Unidirectional:  tt.fields.unidir,
+				Bidirectional:   tt.fields.bidir,
+				MultipointRelay: tt.fields.mpr,
 			}
 			if got := m.String(); got != tt.want {
 				t.Errorf("String() = %v, want %v", got, tt.want)

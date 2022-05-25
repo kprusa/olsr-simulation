@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-type TopologyEntry struct {
-	// dst is the MPR selector in the received TCMessage.
+type topologyEntry struct {
+	// dst is the mpr selector in the received TCMessage.
 	dst NodeID
 
 	// originator is the originator of the TCMessage (last-hop node to the destination).
@@ -25,7 +25,7 @@ type TopologyEntry struct {
 	seq int
 }
 
-type RoutingEntry struct {
+type routingEntry struct {
 	// dst is the destination node address (NodeID in this case).
 	dst NodeID
 
@@ -40,19 +40,19 @@ type RoutingEntry struct {
 type NeighborState int
 
 const (
-	// Bidirectional is a link which the Node has received a HelloMessage via, where the HelloMessage includes
-	// the receiving Node's ID in the Unidirectional list.
-	Bidirectional NeighborState = iota
+	// bidirectional is a link which the Node has received a HelloMessage via, where the HelloMessage includes
+	// the receiving Node's ID in the unidirectional list.
+	bidirectional NeighborState = iota
 
-	// Unidirectional is a link which a Node has received a HelloMessage via.
-	Unidirectional
+	// unidirectional is a link which a Node has received a HelloMessage via.
+	unidirectional
 
-	// MPR is a link which a Node has selected as a multipoint relay.
-	MPR
+	// mpr is a link which a Node has selected as a multipoint relay.
+	mpr
 )
 
-// OneHopNeighborEntry are neighbors that can be reached along a direct link.
-type OneHopNeighborEntry struct {
+// oneHopNeighborEntry are neighbors that can be reached along a direct link.
+type oneHopNeighborEntry struct {
 	neighborID NodeID
 	state      NeighborState
 	holdUntil  int
@@ -69,13 +69,13 @@ func (n NodeID) String() string {
 type Node struct {
 	id NodeID
 
-	// outputLog is where the Node will write all messages that it has sent.
+	// outputLog is where the Node will write all messages that it has Sent.
 	outputLog io.WriteCloser
 
 	// inputLog is where the Node will write all messages it has received.
 	inputLog io.WriteCloser
 
-	// receivedLog is where the Node will write all data it has received.
+	// receivedLog is where the Node will write all Data it has received.
 	receivedLog io.WriteCloser
 
 	// input represents the Node's wireless receiver.
@@ -84,18 +84,18 @@ type Node struct {
 	// output represents the Node's wireless transmitter.
 	output chan<- interface{}
 
-	// nodeMsg will be sent by the node based on the message's delay.
-	nodeMsg NodeMsg
+	// nodeMsg will be Sent by the node based on the message's Delay.
+	nodeMsg NodeMessage
 
 	// routingTable maps destinations to routing entries.
-	routingTable map[NodeID]RoutingEntry
+	routingTable map[NodeID]routingEntry
 
 	// routesChanged determines if the routingTable needs to be recalculated.
 	routesChanged bool
 
 	// topologyTable represents the Node's current perception of the network topology.
-	// First NodeID destination's MPR, while the second ID is the destination.
-	topologyTable map[NodeID]map[NodeID]TopologyEntry
+	// First NodeID destination's mpr, while the second ID is the destination.
+	topologyTable map[NodeID]map[NodeID]topologyEntry
 
 	// topologyHoldTime is how long, in ticks, topology table entries will be held until they are expelled.
 	topologyHoldTime int
@@ -104,13 +104,13 @@ type Node struct {
 	tcSequenceNum int
 
 	// oneHopNeighbors is the set of 1-hop neighbors discovered by this node.
-	oneHopNeighbors map[NodeID]OneHopNeighborEntry
+	oneHopNeighbors map[NodeID]oneHopNeighborEntry
 
 	// twoHopNeighbors represents the 2-hop neighbors that can be reached via a 1-hop neighbor.
 	// The second map is used for uniqueness and merely maps NodeID(s) to themselves.
 	twoHopNeighbors map[NodeID]map[NodeID]NodeID
 
-	// msSet is the set of nodes that have selected this Node as an MPR.
+	// msSet is the set of nodes that have selected this Node as an mpr.
 	msSet map[NodeID]NodeID
 
 	// currentTick is the number of ticks since the node came online.
@@ -122,15 +122,15 @@ type Node struct {
 	// tickDuration controls the Node's ticker.
 	tickDuration time.Duration
 
-	// helloSequences ensures the node ignores hello messages sent out-of-order.
+	// helloSequences ensures the node ignores hello messages Sent out-of-order.
 	helloSequences map[NodeID]int
 
 	// helloSequenceNum is the Node's HelloMessage sequence number.
 	helloSequenceNum int
 }
 
-// run starts the Node "listening" for messages.
-func (n *Node) run(ctx context.Context) {
+// Run starts the Node "listening" for messages.
+func (n *Node) Run(ctx context.Context) {
 	// Continuously listen for new messages until done received by Controller.
 	ticker := time.NewTicker(n.tickDuration)
 	defer ticker.Stop()
@@ -165,19 +165,19 @@ func (n *Node) run(ctx context.Context) {
 		if n.currentTick%10 == 0 && len(n.msSet) > 0 {
 			n.sendTC()
 		}
-		if n.currentTick == n.nodeMsg.delay && !n.nodeMsg.sent {
-			// Attempt to send data message
+		if n.currentTick == n.nodeMsg.Delay && !n.nodeMsg.Sent {
+			// Attempt to send Data message
 			msg := &DataMessage{
-				src:     n.id,
-				dst:     n.nodeMsg.dst,
-				nxtHop:  0,
-				fromnbr: 0,
-				data:    n.nodeMsg.msg,
+				Source:       n.id,
+				Destination:  n.nodeMsg.Destination,
+				NextHop:      0,
+				FromNeighbor: 0,
+				Data:         n.nodeMsg.Message,
 			}
 			if !n.sendData(msg) {
-				n.nodeMsg.delay += 30
+				n.nodeMsg.Delay += 30
 			} else {
-				n.nodeMsg.sent = true
+				n.nodeMsg.Sent = true
 			}
 		}
 
@@ -206,19 +206,19 @@ func (n *Node) run(ctx context.Context) {
 	}
 }
 
-// sendData sends the Node's NodeMsg as a DataMessage if there is a route to the destination.
+// sendData sends the Node's NodeMessage as a DataMessage if there is a route to the destination.
 func (n *Node) sendData(msg *DataMessage) bool {
-	route, in := n.routingTable[msg.dst]
+	route, in := n.routingTable[msg.Destination]
 	if in {
-		msg.fromnbr = n.id
-		msg.nxtHop = route.nextHop
+		msg.FromNeighbor = n.id
+		msg.NextHop = route.nextHop
 
 		n.output <- msg
 		_, err := fmt.Fprintln(n.inputLog, msg)
 		if err != nil {
 			log.Panicf("%d could not write out log: %s", n.id, err)
 		}
-		log.Printf("node %d: sent:\t%s\n", n.id, msg)
+		log.Printf("node %d: Sent:\t%s\n", n.id, msg)
 		return true
 	}
 	return false
@@ -232,11 +232,11 @@ func (n *Node) sendHello() {
 	mprNeighbors := make([]NodeID, 0)
 	for _, o := range n.oneHopNeighbors {
 		switch o.state {
-		case Unidirectional:
+		case unidirectional:
 			uniNeighbors = append(uniNeighbors, o.neighborID)
-		case Bidirectional:
+		case bidirectional:
 			biNeighbors = append(biNeighbors, o.neighborID)
-		case MPR:
+		case mpr:
 			mprNeighbors = append(mprNeighbors, o.neighborID)
 		default:
 			log.Panicf("node %d: invalid one-hop neighbor type: %d", n.id, o.state)
@@ -244,22 +244,22 @@ func (n *Node) sendHello() {
 	}
 
 	hello := &HelloMessage{
-		src:    n.id,
-		unidir: uniNeighbors,
-		bidir:  biNeighbors,
-		mpr:    mprNeighbors,
-		seq:    n.helloSequenceNum,
+		Source:          n.id,
+		Unidirectional:  uniNeighbors,
+		Bidirectional:   biNeighbors,
+		MultipointRelay: mprNeighbors,
+		Sequence:        n.helloSequenceNum,
 	}
 	n.helloSequenceNum++
 	n.output <- hello
-	log.Printf("node %d: sent:\t%s", n.id, hello)
+	log.Printf("node %d: Sent:\t%s", n.id, hello)
 	_, err := fmt.Fprintln(n.outputLog, hello)
 	if err != nil {
-		log.Panicf("node %d: unable to log hello msg to output: %s", n.id, err)
+		log.Panicf("node %d: unable to log hello Message to output: %s", n.id, err)
 	}
 }
 
-// sendTC sends a TCMessage including the most recent ms set for this node.
+// sendTC sends a TCMessage including the most recent MultipointRelaySet set for this node.
 func (n *Node) sendTC() {
 	// Get the MS set node IDs to include in the TC message.
 	msSet := make([]NodeID, 0)
@@ -271,16 +271,16 @@ func (n *Node) sendTC() {
 	})
 
 	tc := &TCMessage{
-		src:     n.id,
-		fromnbr: n.id,
-		seq:     n.tcSequenceNum,
-		ms:      msSet,
+		Source:             n.id,
+		FromNeighbor:       n.id,
+		Sequence:           n.tcSequenceNum,
+		MultipointRelaySet: msSet,
 	}
 	n.output <- tc
-	log.Printf("node %d: sent:\t%s", n.id, tc)
+	log.Printf("node %d: Sent:\t%s", n.id, tc)
 	_, err := fmt.Fprintln(n.outputLog, tc)
 	if err != nil {
-		log.Panicf("node %d: unable to log tc msg to output: %s", n.id, err)
+		log.Panicf("node %d: unable to log tc Message to output: %s", n.id, err)
 	}
 
 	n.tcSequenceNum++
@@ -303,12 +303,12 @@ func (n *Node) handler(msg interface{}) {
 // calculateRoutingTable calculates all reachable destinations based on the topologyTable.
 func (n *Node) calculateRoutingTable() {
 	// Wipe the table clean, ensuring no stale routes.
-	n.routingTable = make(map[NodeID]RoutingEntry)
+	n.routingTable = make(map[NodeID]routingEntry)
 
 	// Add all symmetric one-hop neighbors.
 	for _, neighbor := range n.oneHopNeighbors {
-		if neighbor.state == Bidirectional || neighbor.state == MPR {
-			n.routingTable[neighbor.neighborID] = RoutingEntry{
+		if neighbor.state == bidirectional || neighbor.state == mpr {
+			n.routingTable[neighbor.neighborID] = routingEntry{
 				dst:      neighbor.neighborID,
 				nextHop:  neighbor.neighborID,
 				distance: 1,
@@ -321,7 +321,7 @@ func (n *Node) calculateRoutingTable() {
 		for dst := range reachableTwoHops {
 			_, in := n.routingTable[dst]
 			if !in {
-				n.routingTable[dst] = RoutingEntry{
+				n.routingTable[dst] = routingEntry{
 					dst:      dst,
 					nextHop:  neighbor,
 					distance: 2,
@@ -338,11 +338,11 @@ func (n *Node) calculateRoutingTable() {
 				// Check if there already exists a routing entry for the destination.
 				_, in := n.routingTable[entry.dst]
 				if !in {
-					// No destination. Check if there's a routing entry that can reach the MPR of the destination.
+					// No destination. Check if there's a routing entry that can reach the MultipointRelay of the destination.
 					rEntry, in := n.routingTable[entry.originator]
 					if in && rEntry.distance == h {
 						newEntry = true
-						n.routingTable[entry.dst] = RoutingEntry{
+						n.routingTable[entry.dst] = routingEntry{
 							dst:      entry.dst,
 							nextHop:  rEntry.nextHop,
 							distance: h + 1,
@@ -358,13 +358,13 @@ func (n *Node) calculateRoutingTable() {
 }
 
 // updateOneHopNeighbors adds all new one-hop neighbors that can be reached.
-func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopNeighborEntry, holdUntil int, id NodeID) map[NodeID]OneHopNeighborEntry {
-	entry, in := oneHopNeighbors[msg.src]
+func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]oneHopNeighborEntry, holdUntil int, id NodeID) map[NodeID]oneHopNeighborEntry {
+	entry, in := oneHopNeighbors[msg.Source]
 	if !in {
 		// First time neighbor
-		oneHopNeighbors[msg.src] = OneHopNeighborEntry{
-			neighborID: msg.src,
-			state:      Unidirectional,
+		oneHopNeighbors[msg.Source] = oneHopNeighborEntry{
+			neighborID: msg.Source,
+			state:      unidirectional,
 			holdUntil:  holdUntil,
 		}
 	} else {
@@ -373,7 +373,7 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 
 		// Check if the link state should be updated.
 		included := false
-		for _, nodeID := range append(msg.unidir, append(msg.bidir, msg.mpr...)...) {
+		for _, nodeID := range append(msg.Unidirectional, append(msg.Bidirectional, msg.MultipointRelay...)...) {
 			if nodeID == id {
 				included = true
 				break
@@ -381,12 +381,12 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 		}
 
 		if included {
-			entry.state = Bidirectional
+			entry.state = bidirectional
 		} else {
-			entry.state = Unidirectional
+			entry.state = unidirectional
 		}
 
-		oneHopNeighbors[msg.src] = entry
+		oneHopNeighbors[msg.Source] = entry
 	}
 	return oneHopNeighbors
 }
@@ -395,19 +395,19 @@ func updateOneHopNeighbors(msg *HelloMessage, oneHopNeighbors map[NodeID]OneHopN
 func updateTwoHopNeighbors(msg *HelloMessage, twoHopNeighbors map[NodeID]map[NodeID]NodeID, id NodeID) map[NodeID]map[NodeID]NodeID {
 	// Delete all previous entries for the source by creating a new map.
 	twoHops := make(map[NodeID]NodeID)
-	for _, nodeID := range append(msg.bidir, msg.mpr...) {
-		// Check for own id.
+	for _, nodeID := range append(msg.Bidirectional, msg.MultipointRelay...) {
+		// Check for own ID.
 		if nodeID == id {
 			continue
 		}
 		twoHops[nodeID] = nodeID
 	}
-	twoHopNeighbors[msg.src] = twoHops
+	twoHopNeighbors[msg.Source] = twoHops
 	return twoHopNeighbors
 }
 
-// calculateMPRs creates a new MPR set based on the current neighbor tables.
-func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbors map[NodeID]map[NodeID]NodeID) map[NodeID]OneHopNeighborEntry {
+// calculateMPRs creates a new mpr set based on the current neighbor tables.
+func calculateMPRs(oneHopNeighbors map[NodeID]oneHopNeighborEntry, twoHopNeighbors map[NodeID]map[NodeID]NodeID) map[NodeID]oneHopNeighborEntry {
 	// Copy one hop neighbors
 	remainingTwoHops := make(map[NodeID]NodeID)
 	nodes := make([]struct {
@@ -417,7 +417,7 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 	for neighbor, twoHops := range twoHopNeighbors {
 		// Only consider nodes as MPRs if they are bidirectional.
 		ohn, _ := oneHopNeighbors[neighbor]
-		if ohn.state == Unidirectional {
+		if ohn.state == unidirectional {
 			continue
 		}
 		nodes = append(nodes, struct {
@@ -453,11 +453,11 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 	for id, neigh := range oneHopNeighbors {
 		_, in := mprs[id]
 		if in {
-			neigh.state = MPR
+			neigh.state = mpr
 			oneHopNeighbors[id] = neigh
 		} else {
-			if neigh.state == MPR {
-				neigh.state = Bidirectional
+			if neigh.state == mpr {
+				neigh.state = bidirectional
 				oneHopNeighbors[id] = neigh
 			}
 		}
@@ -467,15 +467,15 @@ func calculateMPRs(oneHopNeighbors map[NodeID]OneHopNeighborEntry, twoHopNeighbo
 
 // handleHello handles the processing of a HelloMessage.
 func (n *Node) handleHello(msg *HelloMessage) {
-	// Ignore hello messages sent out-of-order
-	seq, in := n.helloSequences[msg.src]
+	// Ignore hello messages Sent out-of-order
+	seq, in := n.helloSequences[msg.Source]
 	if !in {
-		n.helloSequences[msg.src] = msg.seq
+		n.helloSequences[msg.Source] = msg.Sequence
 	} else {
-		if msg.seq <= seq {
+		if msg.Sequence <= seq {
 			return
 		} else {
-			n.helloSequences[msg.src] = msg.seq
+			n.helloSequences[msg.Source] = msg.Sequence
 		}
 	}
 
@@ -488,10 +488,10 @@ func (n *Node) handleHello(msg *HelloMessage) {
 	n.oneHopNeighbors = calculateMPRs(n.oneHopNeighbors, n.twoHopNeighbors)
 
 	// Update the msSet
-	_, in = n.msSet[msg.src]
+	_, in = n.msSet[msg.Source]
 	isMS := false
-	// Check if this node is in the MPR set from the HELLO message.
-	for _, nodeID := range msg.mpr {
+	// Check if this node is in the MultipointRelay set from the HELLO message.
+	for _, nodeID := range msg.MultipointRelay {
 		if nodeID == n.id {
 			isMS = true
 			break
@@ -499,71 +499,71 @@ func (n *Node) handleHello(msg *HelloMessage) {
 	}
 	// Previously an MS, but no longer are.
 	if in && !isMS {
-		delete(n.msSet, msg.src)
+		delete(n.msSet, msg.Source)
 	}
 	// New MS.
 	if !in && isMS {
-		n.msSet[msg.src] = msg.src
+		n.msSet[msg.Source] = msg.Source
 	}
 
 	n.routesChanged = true
 }
 
 func (n *Node) handleData(msg *DataMessage) {
-	if msg.dst == n.id {
-		_, err := fmt.Fprintln(n.receivedLog, msg.data)
+	if msg.Destination == n.id {
+		_, err := fmt.Fprintln(n.receivedLog, msg.Data)
 		if err != nil {
-			log.Panicf("node %d: unable to log data to output: %s", n.id, err)
+			log.Panicf("node %d: unable to log Data to output: %s", n.id, err)
 		}
 		return
 	}
 	n.sendData(msg)
 }
 
-func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]TopologyEntry, holdUntil int, id NodeID) map[NodeID]map[NodeID]TopologyEntry {
-	entries, in := topologyTable[msg.src]
+func updateTopologyTable(msg *TCMessage, topologyTable map[NodeID]map[NodeID]topologyEntry, holdUntil int, id NodeID) map[NodeID]map[NodeID]topologyEntry {
+	entries, in := topologyTable[msg.Source]
 	if in {
 		// Check if sequence number is new.
-		for _, dst := range msg.ms {
+		for _, dst := range msg.MultipointRelaySet {
 			entry, in := entries[dst]
-			if in && entry.seq > msg.seq {
+			if in && entry.seq > msg.Sequence {
 				return topologyTable
 			}
 		}
 	}
 	// New sequence TC message. Clear all old entries and add new entries.
-	topologyTable[msg.src] = make(map[NodeID]TopologyEntry)
+	topologyTable[msg.Source] = make(map[NodeID]topologyEntry)
 
-	for _, dst := range msg.ms {
+	for _, dst := range msg.MultipointRelaySet {
 		if dst == id {
 			continue
 		}
-		entries, _ := topologyTable[msg.src]
-		entries[dst] = TopologyEntry{
+		entries, _ := topologyTable[msg.Source]
+		entries[dst] = topologyEntry{
 			dst:        dst,
-			originator: msg.src,
+			originator: msg.Source,
 			holdUntil:  holdUntil,
-			seq:        msg.seq,
+			seq:        msg.Sequence,
 		}
-		topologyTable[msg.src] = entries
+		topologyTable[msg.Source] = entries
 	}
 
 	return topologyTable
 }
 
 func (n *Node) handleTC(msg *TCMessage) {
-	// Ignore TC messages sent by this node.
-	if msg.src == n.id {
+	// Ignore TC messages Sent by this node.
+	if msg.Source == n.id {
 		return
 	}
 
 	n.topologyTable = updateTopologyTable(msg, n.topologyTable, n.currentTick+n.topologyHoldTime, n.id)
 	n.routesChanged = true
 
-	// Only forward TC message if this node is an MPR of the neighbor which sent the TC message.
+	// Only forward TC message if this node is an MultipointRelay of the neighbor which Sent the TC message.
 	doFwd := false
 	for _, id := range n.msSet {
-		if id == msg.fromnbr {
+		if id == msg.FromNeighbor {
 			doFwd = true
 		}
 	}
@@ -572,27 +572,28 @@ func (n *Node) handleTC(msg *TCMessage) {
 	}
 
 	// Update the from-neighbor field.
-	msg.fromnbr = n.id
+	msg.FromNeighbor = n.id
 
-	// Send the updated msg.
+	// Send the updated Message.
 	n.output <- msg
 
-	log.Printf("node %d: sent:\t%s", n.id, msg)
+	log.Printf("node %d: Sent:\t%s", n.id, msg)
 	_, err := fmt.Fprintln(n.outputLog, msg)
 	if err != nil {
-		log.Panicf("node %d: unable to log tc msg to output: %s", n.id, err)
+		log.Panicf("node %d: unable to log tc Message to output: %s", n.id, err)
 	}
 }
 
-type NodeMsg struct {
-	msg   string
-	delay int
-	dst   NodeID
-	sent  bool
+// NodeMessage is a message sent by a Node after the specified Delay.
+type NodeMessage struct {
+	Message     string
+	Delay       int
+	Destination NodeID
+	Sent        bool
 }
 
 // NewNode creates a network Node.
-func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nodeMsg NodeMsg, tickDur time.Duration) *Node {
+func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nodeMsg NodeMessage, tickDur time.Duration) *Node {
 	n := Node{}
 	n.id = id
 	n.input = input
@@ -621,13 +622,13 @@ func NewNode(input <-chan interface{}, output chan<- interface{}, id NodeID, nod
 
 	n.helloSequences = make(map[NodeID]int)
 
-	n.routingTable = make(map[NodeID]RoutingEntry)
+	n.routingTable = make(map[NodeID]routingEntry)
 	n.routesChanged = true
 
-	n.topologyTable = make(map[NodeID]map[NodeID]TopologyEntry)
+	n.topologyTable = make(map[NodeID]map[NodeID]topologyEntry)
 	n.topologyHoldTime = 30
 
-	n.oneHopNeighbors = make(map[NodeID]OneHopNeighborEntry)
+	n.oneHopNeighbors = make(map[NodeID]oneHopNeighborEntry)
 	n.twoHopNeighbors = make(map[NodeID]map[NodeID]NodeID)
 	n.msSet = make(map[NodeID]NodeID)
 	n.neighborHoldTime = 15

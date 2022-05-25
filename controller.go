@@ -38,23 +38,23 @@ func (c *Controller) Initialize(nodes []NodeConfig) {
 	c.inputLink = make(chan interface{})
 	for _, config := range nodes {
 		in := make(chan interface{})
-		c.nodeChannels[config.id] = in
+		c.nodeChannels[config.ID] = in
 
-		node := NewNode(in, c.inputLink, config.id, config.msg, c.tickDuration)
+		node := NewNode(in, c.inputLink, config.ID, config.Message, c.tickDuration)
 		c.nodes = append(c.nodes, *node)
 	}
 }
 
-func (c *Controller) handleHello(hm *HelloMessage, epoch time.Time) {
+func (c *Controller) handleHelloMessage(hm *HelloMessage, epoch time.Time) {
 	// Send the hello message along all neighbor links that are UP.
 	for _, node := range c.nodes {
-		if node.id == hm.src {
+		if node.id == hm.Source {
 			continue
 		}
 		q := QueryMsg{
-			fromNode: hm.src,
-			toNode:   node.id,
-			atTime:   int(time.Since(epoch) / c.tickDuration),
+			FromNode: hm.Source,
+			ToNode:   node.id,
+			AtTime:   int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			// Send the hello if a link is available.
@@ -63,16 +63,16 @@ func (c *Controller) handleHello(hm *HelloMessage, epoch time.Time) {
 	}
 }
 
-func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
+func (c *Controller) handleTCMessage(tcm *TCMessage, epoch time.Time) {
 	// Send the TC message along all neighbor links that are UP.
 	for _, node := range c.nodes {
-		if node.id == tcm.src {
+		if node.id == tcm.Source {
 			continue
 		}
 		q := QueryMsg{
-			fromNode: tcm.fromnbr,
-			toNode:   node.id,
-			atTime:   int(time.Since(epoch) / c.tickDuration),
+			FromNode: tcm.FromNeighbor,
+			ToNode:   node.id,
+			AtTime:   int(time.Since(epoch) / c.tickDuration),
 		}
 		if c.topology.Query(q) {
 			c.nodeChannels[node.id] <- tcm
@@ -80,15 +80,15 @@ func (c *Controller) handleTC(tcm *TCMessage, epoch time.Time) {
 	}
 }
 
-func (c *Controller) handleData(dm *DataMessage, epoch time.Time) {
-	// Send the data message to the specified next-hop, if the link is UP.
+func (c *Controller) handleDataMessage(dm *DataMessage, epoch time.Time) {
+	// Send the Data message to the specified next-hop, if the link is UP.
 	q := QueryMsg{
-		fromNode: dm.fromnbr,
-		toNode:   dm.nxtHop,
-		atTime:   int(time.Since(epoch) / c.tickDuration),
+		FromNode: dm.FromNeighbor,
+		ToNode:   dm.NextHop,
+		AtTime:   int(time.Since(epoch) / c.tickDuration),
 	}
 	if c.topology.Query(q) {
-		c.nodeChannels[dm.nxtHop] <- dm
+		c.nodeChannels[dm.NextHop] <- dm
 	}
 }
 
@@ -106,7 +106,7 @@ func (c *Controller) Start(ticks int) {
 		wg.Add(1)
 		go func(n Node) {
 			defer wg.Done()
-			n.run(ctx)
+			n.Run(ctx)
 		}(node)
 	}
 
@@ -117,11 +117,11 @@ func (c *Controller) Start(ticks int) {
 			case msg := <-c.inputLink:
 				switch t := msg.(type) {
 				case *HelloMessage:
-					go c.handleHello(msg.(*HelloMessage), epoch)
+					go c.handleHelloMessage(msg.(*HelloMessage), epoch)
 				case *DataMessage:
-					go c.handleData(msg.(*DataMessage), epoch)
+					go c.handleDataMessage(msg.(*DataMessage), epoch)
 				case *TCMessage:
-					go c.handleTC(msg.(*TCMessage), epoch)
+					go c.handleTCMessage(msg.(*TCMessage), epoch)
 				default:
 					log.Panicf("controller: invalid message type: %s\n", t)
 				}
@@ -154,16 +154,16 @@ func NewController(topology NetworkTypology, tickDuration time.Duration) *Contro
 
 // NodeConfig is used for the creation of nodes by a Controller during initialization.
 type NodeConfig struct {
-	id  NodeID
-	msg NodeMsg
+	ID      NodeID
+	Message NodeMessage
 }
 
 // ReadNodeConfiguration parses newline separated node configurations from an io.ReadCloser.
-// Configurations should be in the form: {src} {dst} "{msg}" {delay}
-func ReadNodeConfiguration(in io.ReadCloser) ([]NodeConfig, error) {
+// Configurations should be in the form: {Source} {Destination} "{Message}" {Delay}
+func ReadNodeConfiguration(in io.Reader) ([]NodeConfig, error) {
 	configs := make([]NodeConfig, 0)
 
-	re := regexp.MustCompile(`(?P<src>\d{1,2}) (?P<dst>\d{1,2}) (?P<msg>".*?") (?P<delay>\d{1,2})`)
+	re := regexp.MustCompile(`(?P<Source>\d{1,2}) (?P<Destination>\d{1,2}) (?P<Message>".*?") (?P<Delay>\d{1,2})`)
 
 	r := bufio.NewReader(in)
 	for {
@@ -179,24 +179,24 @@ func ReadNodeConfiguration(in io.ReadCloser) ([]NodeConfig, error) {
 
 		id, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return nil, fmt.Errorf("invalid node config: id is not an int: %s", line)
+			return nil, fmt.Errorf("invalid node config: ID is not an int: %s", line)
 		}
 		dst, err := strconv.Atoi(matches[2])
 		if err != nil {
-			return nil, fmt.Errorf("invalid node config: dst is not an int: %s", line)
+			return nil, fmt.Errorf("invalid node config: Destination is not an int: %s", line)
 		}
 		delay, err := strconv.Atoi(matches[4])
 		if err != nil {
-			return nil, fmt.Errorf("invalid node config: delay is not an int: %s", line)
+			return nil, fmt.Errorf("invalid node config: Delay is not an int: %s", line)
 		}
 
 		c := NodeConfig{
-			id: NodeID(id),
-			msg: NodeMsg{
-				msg:   matches[3][1 : len(matches[3])-1],
-				delay: delay,
-				dst:   NodeID(dst),
-				sent:  false,
+			ID: NodeID(id),
+			Message: NodeMessage{
+				Message:     matches[3][1 : len(matches[3])-1],
+				Delay:       delay,
+				Destination: NodeID(dst),
+				Sent:        false,
 			},
 		}
 

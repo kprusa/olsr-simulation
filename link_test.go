@@ -215,7 +215,7 @@ func Test_parseLinkState(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid id",
+			name:    "invalid ID",
 			args:    args{state: "1 UP X 1"},
 			want:    nil,
 			wantErr: true,

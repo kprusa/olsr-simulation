@@ -26,10 +26,10 @@ type LinkState struct {
 	// status is the status of the link.
 	status LinkStatus
 
-	// fromNode is the source Node id.
+	// fromNode is the source Node ID.
 	fromNode NodeID
 
-	// toNode is the destination Node id.
+	// toNode is the destination Node ID.
 	toNode NodeID
 }
 
@@ -69,10 +69,10 @@ func parseLinkState(state string) (*LinkState, error) {
 	// Parse labels
 	lre := regexp.MustCompile(`^\d$`)
 	if !lre.Match([]byte(splitState[2])) {
-		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid id: '%s': must be '^[0-9]$'", splitState[2])}
+		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid ID: '%s': must be '^[0-9]$'", splitState[2])}
 	}
 	if !lre.Match([]byte(splitState[3])) {
-		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid id: '%s': must be '^[0-9]$'", splitState[3])}
+		return nil, ErrParseLinkState{msg: fmt.Sprintf("invalid ID: '%s': must be '^[0-9]$'", splitState[3])}
 	}
 
 	// Already ensured the string represents an integer from the regex.
@@ -86,10 +86,10 @@ func parseLinkState(state string) (*LinkState, error) {
 }
 
 type Link struct {
-	// fromNode is the source Node id.
+	// fromNode is the source Node ID.
 	fromNode NodeID
 
-	// toNode is the destination Node id.
+	// toNode is the destination Node ID.
 	toNode NodeID
 
 	states []LinkState

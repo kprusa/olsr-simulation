@@ -16,53 +16,53 @@ func separatedString[T fmt.Stringer](items []T, separator string) string {
 
 // HelloMessage represents a HELLO OLSR message.
 type HelloMessage struct {
-	src    NodeID
-	unidir []NodeID
-	bidir  []NodeID
-	mpr    []NodeID
+	Source          NodeID
+	Unidirectional  []NodeID
+	Bidirectional   []NodeID
+	MultipointRelay []NodeID
 
-	// seq numbers are added to ensure hello messages are delivered in order.
+	// Sequence numbers are added to ensure hello messages are delivered in order.
 	// The sequence number is needed for the simulation, as hello messages may be delivered out-of-order due to
 	// scheduling of goroutines.
 	// In a real life scenario, a hello message transmitted by a node could never arrive at a neighbor before a
 	// previously transmitted hello message.
-	seq int
+	Sequence int
 }
 
 func (m HelloMessage) String() string {
 	f := "* %d HELLO UNIDIR %s BIDIR %s MPR %s"
 	return fmt.Sprintf(
 		f,
-		m.src,
-		separatedString(m.unidir, " "),
-		separatedString(m.bidir, " "),
-		separatedString(m.mpr, " "),
+		m.Source,
+		separatedString(m.Unidirectional, " "),
+		separatedString(m.Bidirectional, " "),
+		separatedString(m.MultipointRelay, " "),
 	)
 }
 
 // DataMessage represents a DATA OLSR message.
 type DataMessage struct {
-	src     NodeID
-	dst     NodeID
-	nxtHop  NodeID
-	fromnbr NodeID
-	data    string
+	Source       NodeID
+	Destination  NodeID
+	NextHop      NodeID
+	FromNeighbor NodeID
+	Data         string
 }
 
 func (m DataMessage) String() string {
 	f := "%d %d DATA %d %d %s"
-	return fmt.Sprintf(f, m.nxtHop, m.fromnbr, m.src, m.dst, m.data)
+	return fmt.Sprintf(f, m.NextHop, m.FromNeighbor, m.Source, m.Destination, m.Data)
 }
 
 // TCMessage represents a topology control (TC) OLSR message.
 type TCMessage struct {
-	src     NodeID
-	fromnbr NodeID
-	seq     int
-	ms      []NodeID
+	Source             NodeID
+	FromNeighbor       NodeID
+	Sequence           int
+	MultipointRelaySet []NodeID
 }
 
 func (m TCMessage) String() string {
 	f := "* %d TC %d %d MS %s"
-	return fmt.Sprintf(f, m.fromnbr, m.src, m.seq, separatedString(m.ms, " "))
+	return fmt.Sprintf(f, m.FromNeighbor, m.Source, m.Sequence, separatedString(m.MultipointRelaySet, " "))
 }
