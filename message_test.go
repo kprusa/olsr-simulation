@@ -101,7 +101,7 @@ func TestHelloMessage_String(t *testing.T) {
 				bidir:  []NodeID{5, 6},
 				mpr:    []NodeID{7, 8},
 			},
-			want: "* 4 HELLO UNIDIR 1 2 3 BIDIR 5 6 MultipointRelay 7 8",
+			want: "* 4 HELLO UNIDIR 1 2 3 BIDIR 5 6 MPR 7 8",
 		},
 	}
 	for _, tt := range tests {

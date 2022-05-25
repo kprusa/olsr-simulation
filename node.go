@@ -122,7 +122,8 @@ type Node struct {
 	// tickDuration controls the Node's ticker.
 	tickDuration time.Duration
 
-	// helloSequences ensures the node ignores hello messages Sent out-of-order.
+	// helloSequences ensures the node ignores hello messages sent out-of-order by caching the most recent HelloMessage
+	// sequence number received from a Node.
 	helloSequences map[NodeID]int
 
 	// helloSequenceNum is the Node's HelloMessage sequence number.

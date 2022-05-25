@@ -6,7 +6,7 @@ facilitate message interchange based on a supplied network topology.
 
 There is a single executable, with no need to spawn additional processes.
 
-All communication is facilitated through Go channels and each node logs all
+All communication is facilitated through Go channels, and each node logs all
 communication to files.
 
 ---
