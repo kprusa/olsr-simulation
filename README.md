@@ -1,6 +1,6 @@
 ## Summary
 
-This project uses Go to simulate a simplified version of an OLSR ad-hoc network as defined by [RFC 3626](https://datatracker.ietf.org/doc/html/rfc3626). For the simulation, each node
+This project uses Go to simulate a simplified version of an OLSR ad hoc network as defined by [RFC 3626](https://datatracker.ietf.org/doc/html/rfc3626). For the simulation, each node
 is run as a goroutine, with an input and output channel. A controller is used to
 facilitate message interchange based on a supplied network topology.
 
@@ -12,11 +12,11 @@ communication to files.
 ---
 ## Execution
 
-Executing "network-simulation" with no arguments will show a usage message.
+Executing `olsr-simulation` with no arguments will show a usage message.
 
 During execution, all messages sent and received by nodes will be logged to stdout.
 
-Post execution, a new directory "log" will appear. This directory will include three
+Post execution, a new directory `log` will appear. This directory will include three
 log files for each node:
 
     {NODE_ID}_in.txt:
@@ -89,14 +89,13 @@ log files for each node:
 ---
 ## Example Execution
 
-
 ### Basic Example
 
 The following command uses the included testdata to run a demonstration
 simulation.
 
 ```text
-./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
+olsr-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
 ```
 
 
@@ -105,5 +104,5 @@ simulation.
 The following command sets the tick rate to 100ms, increasing the simulation speed.
 
 ```text
-./network-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
+olsr-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
 ```

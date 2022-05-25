@@ -94,7 +94,7 @@ type Node struct {
 	routesChanged bool
 
 	// topologyTable represents the Node's current perception of the network topology.
-	// First NodeID destination's mpr, while the second ID is the destination.
+	// The first NodeID is the destination's mpr, while the second NodeID is the destination.
 	topologyTable map[NodeID]map[NodeID]topologyEntry
 
 	// topologyHoldTime is how long, in ticks, topology table entries will be held until they are expelled.
