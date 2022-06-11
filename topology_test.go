@@ -86,7 +86,7 @@ func goodTopologyReadyCloser() io.ReadCloser {
 }
 
 func badTopologyReadCloser() io.ReadCloser {
-	return getTestData("./testdata/topology_bad_order.txt")
+	return getTestData("./testdata/bad_topology_order.txt")
 }
 
 func goodTopology() *NetworkTypology {

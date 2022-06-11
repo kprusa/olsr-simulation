@@ -96,24 +96,36 @@ func (c *Controller) handleDataMessage(dm *DataMessage, epoch time.Time) {
 func (c *Controller) Start(ticks int) {
 	// Define a context to enable sending a done message to all nodes.
 	ctx, cancel := context.WithCancel(context.Background())
-	wg := sync.WaitGroup{}
+	nodeWg := sync.WaitGroup{}
 
 	// Establish an epoch, which will be used in conjunction with the NetworkTopology.
 	epoch := time.Now()
 
 	// Start up all the nodes
 	for _, node := range c.nodes {
-		wg.Add(1)
+		nodeWg.Add(1)
 		go func(n Node) {
-			defer wg.Done()
+			defer nodeWg.Done()
 			n.Run(ctx)
 		}(node)
 	}
 
-	// Launch a goroutine to handle routing of messages between nodes using the network topology.
+	// Signal the router to shutdown when all nodes return.
+	doneRouting := make(chan struct{})
 	go func() {
+		defer close(doneRouting)
+		nodeWg.Wait()
+	}()
+
+	// Launch a goroutine to handle routing of messages between nodes using the network topology.
+	routerShutdown := make(chan struct{})
+	go func() {
+		defer close(routerShutdown)
 		for {
 			select {
+			case <-doneRouting:
+				log.Println("Shutting down router")
+				return
 			case msg := <-c.inputLink:
 				switch t := msg.(type) {
 				case *HelloMessage:
@@ -129,18 +141,15 @@ func (c *Controller) Start(ticks int) {
 		}
 	}()
 
-	// Launch a goroutine to send a done message to all nodes after the timer expires.
+	// Launch a goroutine to send a done message to all nodes, via a cancelled context, after the timer expires.
 	go func() {
 		<-time.NewTimer(c.tickDuration * time.Duration(ticks)).C
 		cancel()
-		// Flush the input link, ensuring all nodes will receive the done message.
-		for len(c.inputLink) > 0 {
-			<-c.inputLink
-		}
 	}()
 
-	// Wait for all nodes to return.
-	wg.Wait()
+	// Wait for all nodes to return and router to return.
+	<-routerShutdown
+	log.Println("done.")
 }
 
 // NewController creates a Controller based on the supplied network typology.
