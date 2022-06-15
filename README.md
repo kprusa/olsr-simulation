@@ -12,7 +12,7 @@ communication to files.
 ---
 ## Execution
 
-Executing `olsr-simulation` with no arguments will show a usage message.
+Executing `olsrsim` with no arguments will show a usage message.
 
 During execution, all messages sent and received by nodes will be logged to stdout.
 
@@ -95,7 +95,7 @@ The following command uses the included testdata to run a demonstration
 simulation.
 
 ```text
-olsr-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
+olsrsim -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt
 ```
 
 
@@ -104,5 +104,5 @@ olsr-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology
 The following command sets the tick rate to 100ms, increasing the simulation speed.
 
 ```text
-olsr-simulation -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
+olsrsim -nf ./testdata/test_node_config.txt -tf ./testdata/test_topology.txt -t 100
 ```
